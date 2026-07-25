@@ -20,13 +20,21 @@ export default function ExplorePage() {
   const fetchRequests = async () => {
     let query = supabase
       .from('requests')
-      .select('*, profile:profiles(username, avatar_url)')
+      .select('*')
       .order('created_at', { ascending: false })
 
     if (filter !== 'all') query = query.eq('status', filter)
 
     const { data, error } = await query
-    if (!error && data) setRequests(data as Request[])
+    if (error || !data) { setLoading(false); return }
+
+    const userIds = [...new Set(data.map((r: Request) => r.user_id))]
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, username, avatar_url')
+      .in('id', userIds)
+    const profileMap = Object.fromEntries((profiles ?? []).map(p => [p.id, p]))
+    setRequests(data.map((r: Request) => ({ ...r, profile: profileMap[r.user_id] ?? null })) as Request[])
     setLoading(false)
   }
 

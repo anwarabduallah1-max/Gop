@@ -22,12 +22,11 @@ export default function MyRequestsPage() {
     if (tab === 'created') {
       const { data: d } = await supabase
         .from('requests')
-        .select('*, profile:profiles(username, avatar_url)')
+        .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
       data = (d ?? []) as Request[]
     } else {
-      // requests where user donated
       const { data: txns } = await supabase
         .from('transactions')
         .select('request_id')
@@ -36,12 +35,23 @@ export default function MyRequestsPage() {
       if (ids.length > 0) {
         const { data: d } = await supabase
           .from('requests')
-          .select('*, profile:profiles(username, avatar_url)')
+          .select('*')
           .in('id', ids)
           .order('created_at', { ascending: false })
         data = (d ?? []) as Request[]
       }
     }
+
+    if (data.length > 0) {
+      const userIds = [...new Set(data.map(r => r.user_id))]
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, username, avatar_url')
+        .in('id', userIds)
+      const profileMap = Object.fromEntries((profiles ?? []).map(p => [p.id, p]))
+      data = data.map(r => ({ ...r, profile: profileMap[r.user_id] ?? null }))
+    }
+
     setRequests(data)
     setLoading(false)
   }
