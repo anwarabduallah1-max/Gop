@@ -1,10 +1,14 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 
 const PLATFORM_FEE = 0.10
+const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5 MB
+const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+
+type ImageMode = 'url' | 'upload'
 
 export default function CreateRequestPage() {
   const { user } = useAuth()
@@ -19,9 +23,50 @@ export default function CreateRequestPage() {
   const [loading, setLoading] = useState(false)
   const [imagePreviewError, setImagePreviewError] = useState(false)
 
+  const [imageMode, setImageMode] = useState<ImageMode>('url')
+  const [uploading, setUploading] = useState(false)
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null)
+  const [dragOver, setDragOver] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
   const base = parseFloat(baseTarget) || 0
   const fee = base * PLATFORM_FEE
   const finalTarget = base + fee
+
+  const validateFile = (file: File): boolean => {
+    if (!ACCEPTED_TYPES.includes(file.type)) {
+      showToast('Please choose a JPG, PNG, WEBP, or GIF image.', 'error')
+      return false
+    }
+    if (file.size > MAX_FILE_SIZE) {
+      showToast('Image must be under 5 MB.', 'error')
+      return false
+    }
+    return true
+  }
+
+  const handleFileSelected = (file: File | undefined) => {
+    if (!file) return
+    if (!validateFile(file)) return
+    setUploadedFile(file)
+    setImageUrl('')
+    setImagePreviewError(false)
+  }
+
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    handleFileSelected(e.target.files?.[0])
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setDragOver(false)
+    handleFileSelected(e.dataTransfer.files?.[0])
+  }
+
+  const handleRemoveUpload = () => {
+    setUploadedFile(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -30,10 +75,31 @@ export default function CreateRequestPage() {
     if (base <= 0) { showToast('Please enter a valid target amount', 'error'); return }
 
     setLoading(true)
+
+    let finalImageUrl = imageUrl.trim()
+
+    // If a file was selected, upload it to Supabase Storage
+    if (imageMode === 'upload' && uploadedFile) {
+      setUploading(true)
+      const fileExt = uploadedFile.name.split('.').pop() || 'jpg'
+      const filePath = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${fileExt}`
+      const { error: upErr } = await supabase.storage
+        .from('request-images')
+        .upload(filePath, uploadedFile, { cacheControl: '3600', upsert: false })
+      setUploading(false)
+      if (upErr) {
+        showToast(upErr.message, 'error')
+        setLoading(false)
+        return
+      }
+      const { data: pub } = supabase.storage.from('request-images').getPublicUrl(filePath)
+      finalImageUrl = pub.publicUrl
+    }
+
     const { error } = await supabase.from('requests').insert({
       title: title.trim(),
       description: description.trim(),
-      image_url: imageUrl.trim(),
+      image_url: finalImageUrl,
       product_url: productUrl.trim(),
       base_target: base,
       final_target: finalTarget,
@@ -94,28 +160,115 @@ export default function CreateRequestPage() {
             </div>
 
             <div>
-              <label className="field-label">Product Image URL</label>
-              <input
-                className="field-input"
-                type="url"
-                placeholder="https://example.com/product.jpg"
-                value={imageUrl}
-                onChange={e => { setImageUrl(e.target.value); setImagePreviewError(false) }}
-              />
-              {imageUrl && !imagePreviewError && (
-                <div style={{ marginTop: 10, borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border)', height: 160 }}>
-                  <img
-                    src={imageUrl}
-                    alt="Preview"
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                    onError={() => setImagePreviewError(true)}
+              <label className="field-label">Product Image</label>
+              <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+                <button
+                  type="button"
+                  className={`chip ${imageMode === 'url' ? 'active' : ''}`}
+                  onClick={() => { setImageMode('url'); setUploadedFile(null) }}
+                >
+                  Image URL
+                </button>
+                <button
+                  type="button"
+                  className={`chip ${imageMode === 'upload' ? 'active' : ''}`}
+                  onClick={() => setImageMode('upload')}
+                >
+                  Upload Photo
+                </button>
+              </div>
+
+              {imageMode === 'url' ? (
+                <>
+                  <input
+                    className="field-input"
+                    type="url"
+                    placeholder="https://example.com/product.jpg"
+                    value={imageUrl}
+                    onChange={e => { setImageUrl(e.target.value); setImagePreviewError(false) }}
                   />
-                </div>
-              )}
-              {imagePreviewError && (
-                <div style={{ marginTop: 8, fontSize: 13, color: 'var(--error)' }}>
-                  Could not load image from that URL.
-                </div>
+                  {imageUrl && !imagePreviewError && (
+                    <div style={{ marginTop: 10, borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border)', height: 160 }}>
+                      <img
+                        src={imageUrl}
+                        alt="Preview"
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        onError={() => setImagePreviewError(true)}
+                      />
+                    </div>
+                  )}
+                  {imagePreviewError && (
+                    <div style={{ marginTop: 8, fontSize: 13, color: 'var(--error)' }}>
+                      Could not load image from that URL.
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  {!uploadedFile ? (
+                    <div
+                      onClick={() => fileInputRef.current?.click()}
+                      onDragOver={e => { e.preventDefault(); setDragOver(true) }}
+                      onDragLeave={() => setDragOver(false)}
+                      onDrop={handleDrop}
+                      style={{
+                        border: `2px dashed ${dragOver ? 'var(--accent)' : 'var(--border)'}`,
+                        borderRadius: 12,
+                        padding: '32px 20px',
+                        textAlign: 'center',
+                        cursor: 'pointer',
+                        background: dragOver ? 'var(--accent-muted)' : 'var(--surface-raised)',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      <div style={{ fontSize: 32, marginBottom: 10, opacity: 0.5 }}>📷</div>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>
+                        {dragOver ? 'Drop image here' : 'Tap to upload or drag a photo'}
+                      </div>
+                      <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                        JPG, PNG, WEBP or GIF · up to 5 MB
+                      </div>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept={ACCEPTED_TYPES.join(',')}
+                        onChange={handleFileInput}
+                        style={{ display: 'none' }}
+                      />
+                    </div>
+                  ) : (
+                    <div style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border)' }}>
+                      <img
+                        src={URL.createObjectURL(uploadedFile)}
+                        alt="Preview"
+                        style={{ width: '100%', height: 200, objectFit: 'cover' }}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleRemoveUpload}
+                        style={{
+                          position: 'absolute', top: 10, right: 10,
+                          background: 'rgba(0,0,0,0.7)',
+                          border: '1px solid var(--border)',
+                          color: 'var(--text-primary)',
+                          width: 28, height: 28, borderRadius: '50%',
+                          cursor: 'pointer', fontSize: 14,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}
+                      >
+                        ✕
+                      </button>
+                      <div style={{
+                        position: 'absolute', bottom: 0, left: 0, right: 0,
+                        background: 'rgba(0,0,0,0.6)',
+                        padding: '8px 12px',
+                        fontSize: 12, color: 'var(--text-primary)',
+                      }}>
+                        {uploadedFile.name} · {(uploadedFile.size / 1024).toFixed(0)} KB
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </div>
 
@@ -149,10 +302,10 @@ export default function CreateRequestPage() {
             <button
               type="submit"
               className="btn-primary"
-              disabled={loading || !title.trim() || base <= 0}
+              disabled={loading || !title.trim() || base <= 0 || (imageMode === 'upload' && uploading)}
               style={{ width: '100%', padding: '14px', fontSize: 15 }}
             >
-              {loading ? 'Creating...' : 'Create Request'}
+              {uploading ? 'Uploading image...' : loading ? 'Creating...' : 'Create Request'}
             </button>
           </form>
 
