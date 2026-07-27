@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import type { Request } from '../lib/types'
 import DonateModal from '../components/DonateModal'
+import WithdrawModal from '../components/WithdrawModal'
 
 export default function MyRequestsPage() {
   const { user } = useAuth()
@@ -14,6 +15,7 @@ export default function MyRequestsPage() {
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<'created' | 'donated'>('created')
   const [selected, setSelected] = useState<Request | null>(null)
+  const [withdrawTarget, setWithdrawTarget] = useState<Request | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
 
   const fetchMyRequests = async () => {
@@ -148,12 +150,12 @@ export default function MyRequestsPage() {
                         <span style={{
                           fontSize: 11, fontWeight: 700,
                           padding: '3px 10px', borderRadius: 999,
-                          background: isFunded ? 'rgba(62,207,142,0.1)' : 'var(--accent-muted)',
-                          color: isFunded ? 'var(--success)' : 'var(--accent)',
-                          border: isFunded ? '1px solid rgba(62,207,142,0.3)' : '1px solid rgba(245,200,66,0.25)',
+                          background: isFunded ? 'rgba(62,207,142,0.1)' : r.status === 'paid_out' ? 'rgba(62,207,142,0.15)' : 'var(--accent-muted)',
+                          color: isFunded || r.status === 'paid_out' ? 'var(--success)' : 'var(--accent)',
+                          border: isFunded || r.status === 'paid_out' ? '1px solid rgba(62,207,142,0.3)' : '1px solid rgba(245,200,66,0.25)',
                           textTransform: 'uppercase', letterSpacing: '0.05em',
                         }}>
-                          {r.status}
+                          {r.status === 'paid_out' ? 'Paid Out' : r.status}
                         </span>
                       </div>
                     </div>
@@ -166,7 +168,7 @@ export default function MyRequestsPage() {
                       <span>{pct.toFixed(0)}%</span>
                     </div>
 
-                    <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
+                    <div style={{ display: 'flex', gap: 10, marginTop: 14, flexWrap: 'wrap' }}>
                       {tab === 'created' && r.status === 'active' && (
                         <button
                           onClick={() => handleDelete(r.id)}
@@ -180,6 +182,15 @@ export default function MyRequestsPage() {
                           }}
                         >
                           {deleting === r.id ? 'Deleting...' : 'Delete'}
+                        </button>
+                      )}
+                      {tab === 'created' && r.status === 'funded' && (
+                        <button
+                          onClick={() => setWithdrawTarget(r)}
+                          className="btn-primary"
+                          style={{ padding: '6px 14px', fontSize: 12 }}
+                        >
+                          Withdraw Funds
                         </button>
                       )}
                       {tab === 'donated' && r.status === 'active' && (
@@ -211,6 +222,14 @@ export default function MyRequestsPage() {
           request={selected}
           onClose={() => setSelected(null)}
           onDonated={fetchMyRequests}
+        />
+      )}
+
+      {withdrawTarget && (
+        <WithdrawModal
+          request={withdrawTarget}
+          onClose={() => setWithdrawTarget(null)}
+          onWithdrawn={fetchMyRequests}
         />
       )}
     </div>

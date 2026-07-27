@@ -8,6 +8,7 @@ interface Props {
 export default function RequestCard({ request, onClick }: Props) {
   const pct = Math.min((request.current_stars / request.final_target) * 100, 100)
   const isFunded = request.status === 'funded'
+  const isPaidOut = request.status === 'paid_out'
   const remaining = Math.max(request.final_target - request.current_stars, 0)
 
   return (
@@ -44,7 +45,7 @@ export default function RequestCard({ request, onClick }: Props) {
             ★
           </div>
         )}
-        {isFunded && (
+        {(isFunded || isPaidOut) && (
           <div style={{
             position: 'absolute', top: 10, right: 10,
             background: 'rgba(62,207,142,0.15)',
@@ -56,7 +57,7 @@ export default function RequestCard({ request, onClick }: Props) {
             letterSpacing: '0.05em',
             textTransform: 'uppercase',
           }}>
-            Funded
+            {isPaidOut ? 'Paid Out' : 'Funded'}
           </div>
         )}
       </div>
@@ -128,9 +129,15 @@ export default function RequestCard({ request, onClick }: Props) {
               {request.profile?.username ?? 'Anonymous'}
             </span>
           </div>
-          <button className="btn-primary" style={{ padding: '6px 14px', fontSize: 12 }}>
-            Donate ★
-          </button>
+          {isPaidOut ? (
+            <span style={{ fontSize: 12, color: 'var(--success)', fontWeight: 600 }}>
+              Completed
+            </span>
+          ) : (
+            <button className="btn-primary" style={{ padding: '6px 14px', fontSize: 12 }}>
+              Donate ★
+            </button>
+          )}
         </div>
       </div>
     </div>
