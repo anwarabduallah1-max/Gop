@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import { supabase } from '../lib/supabase'
@@ -17,13 +17,6 @@ interface Props {
   onClose: () => void
 }
 
-function generateDepositAddress(): string {
-  const chars = '0123456789abcdef'
-  let addr = 'T'
-  for (let i = 0; i < 33; i++) addr += chars[Math.floor(Math.random() * 16)]
-  return addr
-}
-
 export default function WalletModal({ onClose }: Props) {
   const { profile, refreshProfile } = useAuth()
   const { showToast } = useToast()
@@ -32,50 +25,69 @@ export default function WalletModal({ onClose }: Props) {
   const [custom, setCustom] = useState('')
   const [step, setStep] = useState<Step>('select')
   const [orderId, setOrderId] = useState<string | null>(null)
-  const [depositAddress] = useState(generateDepositAddress)
+  const [invoiceUrl, setInvoiceUrl] = useState<string | null>(null)
+  const [qrCode, setQrCode] = useState<string | null>(null)
   const [txHash, setTxHash] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [creating, setCreating] = useState(false)
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const getAmount = () => {
     if (custom !== '') return Math.max(Number(custom), 1)
     return selected ?? 0
   }
 
-  const handleProceedToPay = () => {
-    const amt = getAmount()
-    if (amt < 1) return
-    setError(null)
-    setStep('pay')
-  }
+  // Poll the payment_orders table for status changes (Plisio webhook updates it).
+  useEffect(() => {
+    if (step !== 'processing' || !orderId) return
 
-  const handleConfirmPayment = async () => {
-    const amt = getAmount()
-    if (amt < 1) return
-    setError(null)
-    setStep('processing')
+    const poll = async () => {
+      const { data: order } = await supabase
+        .from('payment_orders')
+        .select('status, tx_hash')
+        .eq('id', orderId)
+        .maybeSingle()
 
-    // 1. Create a pending payment_order row.
-    const { data: order, error: insertErr } = await supabase
-      .from('payment_orders')
-      .insert({
-        usdt_amount: amt,
-        stars_amount: amt,
-        status: 'pending',
-      })
-      .select('id')
-      .maybeSingle()
-
-    if (insertErr || !order) {
-      setError(insertErr?.message ?? 'Failed to create payment order')
-      setStep('pay')
-      return
+      if (order?.status === 'confirmed') {
+        if (pollRef.current) clearInterval(pollRef.current)
+        setTxHash(order.tx_hash ?? null)
+        await refreshProfile()
+        setStep('done')
+      }
     }
 
-    setOrderId(order.id)
+    pollRef.current = setInterval(poll, 3000)
+    return () => { if (pollRef.current) clearInterval(pollRef.current) }
+  }, [step, orderId])
 
-    // 2. Call the deposit-webhook edge function to simulate blockchain confirmation.
-    const fnUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/deposit-webhook`
+  const handleProceedToPay = async () => {
+    const amt = getAmount()
+    if (amt < 1) return
+    setError(null)
+    setCreating(true)
+
     try {
+      // 1. Create a pending payment_order row.
+      const { data: order, error: insertErr } = await supabase
+        .from('payment_orders')
+        .insert({
+          usdt_amount: amt,
+          stars_amount: amt,
+          status: 'pending',
+        })
+        .select('id')
+        .maybeSingle()
+
+      if (insertErr || !order) {
+        setError(insertErr?.message ?? 'Failed to create payment order')
+        setCreating(false)
+        return
+      }
+
+      setOrderId(order.id)
+
+      // 2. Call the plisio-create-invoice edge function to create a real Plisio invoice.
+      const fnUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/plisio-create-invoice`
       const res = await fetch(fnUrl, {
         method: 'POST',
         headers: {
@@ -83,19 +95,26 @@ export default function WalletModal({ onClose }: Props) {
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
           apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
         },
-        body: JSON.stringify({ order_id: order.id }),
+        body: JSON.stringify({ amount: amt, order_id: order.id }),
       })
       const json = await res.json()
+
       if (!res.ok || !json.success) {
-        throw new Error(json.error ?? `Payment failed (${res.status})`)
+        throw new Error(json.error ?? `Failed to create Plisio invoice (${res.status})`)
       }
-      setTxHash(json.tx_hash ?? null)
-      await refreshProfile()
-      setStep('done')
+
+      setInvoiceUrl(json.invoice_url)
+      setQrCode(json.qr_code)
+      setStep('pay')
     } catch (e) {
       setError((e as Error).message)
-      setStep('pay')
+    } finally {
+      setCreating(false)
     }
+  }
+
+  const handleIHavePaid = () => {
+    setStep('processing')
   }
 
   const handleClose = () => {
@@ -111,14 +130,14 @@ export default function WalletModal({ onClose }: Props) {
           <div>
             <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: 'var(--text-primary)' }}>
               {step === 'select' && 'Wallet & Stars'}
-              {step === 'pay' && 'USDT Payment'}
+              {step === 'pay' && 'Pay with USDT'}
               {step === 'processing' && 'Confirming Payment...'}
               {step === 'done' && 'Payment Confirmed'}
             </h2>
             <p style={{ margin: '4px 0 0', fontSize: 14, color: 'var(--text-muted)' }}>
-              {step === 'select' && '1 Star = 1 USDT'}
-              {step === 'pay' && 'Send USDT to the deposit address below'}
-              {step === 'processing' && 'Waiting for blockchain confirmation'}
+              {step === 'select' && '1 Star = 1 USDT · Powered by Plisio'}
+              {step === 'pay' && 'Scan the QR code or open the payment link'}
+              {step === 'processing' && 'Waiting for Plisio blockchain confirmation'}
               {step === 'done' && 'Your Stars have been credited'}
             </p>
           </div>
@@ -207,63 +226,90 @@ export default function WalletModal({ onClose }: Props) {
                 </div>
               </div>
 
+              {error && (
+                <div style={{
+                  padding: '10px 12px',
+                  background: 'rgba(240,96,96,0.08)',
+                  border: '1px solid rgba(240,96,96,0.25)',
+                  borderRadius: 8,
+                  fontSize: 13, color: 'var(--error)',
+                }}>
+                  {error}
+                </div>
+              )}
+
               <button
                 className="btn-primary"
                 onClick={handleProceedToPay}
-                disabled={getAmount() < 1}
+                disabled={getAmount() < 1 || creating}
                 style={{ width: '100%', padding: '13px', fontSize: 15 }}
               >
-                Continue to Payment — ${getAmount()} USDT
+                {creating ? 'Creating Invoice...' : `Continue to Payment — $${getAmount()} USDT`}
               </button>
             </>
           )}
 
-          {/* STEP: PAY */}
+          {/* STEP: PAY — Plisio invoice with QR code */}
           {step === 'pay' && (
             <>
               <div style={{
-                padding: '16px 18px',
+                padding: '20px',
                 background: 'var(--surface-raised)',
                 border: '1px solid var(--border)',
                 borderRadius: 12,
+                textAlign: 'center',
               }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, textAlign: 'left' }}>
                   <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Amount due</span>
                   <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--accent)' }}>
                     {getAmount()} USDT
                   </span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, textAlign: 'left' }}>
                   <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Network</span>
                   <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
-                    Tron (TRC20)
+                    Tron (TRC20) · USDT
                   </span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, textAlign: 'left' }}>
                   <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>You receive</span>
                   <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--success)' }}>
                     ★ {getAmount()} Stars
                   </span>
                 </div>
 
-                <hr className="divider" style={{ margin: '0 0 14px' }} />
+                <hr className="divider" style={{ margin: '0 0 16px' }} />
 
-                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6 }}>
-                  Deposit Address (USDT-TRC20)
-                </div>
-                <div style={{
-                  padding: '10px 12px',
-                  background: 'var(--canvas)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 8,
-                  fontFamily: 'ui-monospace, monospace',
-                  fontSize: 12,
-                  color: 'var(--text-primary)',
-                  wordBreak: 'break-all',
-                  lineHeight: 1.5,
-                }}>
-                  {depositAddress}
-                </div>
+                {qrCode && (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+                    <div style={{
+                      padding: 12, background: '#fff', borderRadius: 10,
+                      border: '1px solid var(--border)',
+                    }}>
+                      <img
+                        src={qrCode}
+                        alt="Payment QR Code"
+                        style={{ width: 180, height: 180, display: 'block' }}
+                        onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+                      />
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                      Scan with any crypto wallet app
+                    </div>
+                  </div>
+                )}
+
+                {invoiceUrl && (
+                  <a
+                    href={invoiceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn-secondary"
+                    style={{ display: 'inline-block', padding: '10px 20px', fontSize: 13, textDecoration: 'none', marginBottom: 4 }}
+                  >
+                    Open Plisio Payment Page ↗
+                  </a>
+                )}
               </div>
 
               {error && (
@@ -279,20 +325,20 @@ export default function WalletModal({ onClose }: Props) {
               )}
 
               <div style={{ display: 'flex', gap: 10 }}>
-                <button className="btn-secondary" onClick={() => setStep('select')} style={{ flex: 1 }}>
+                <button className="btn-secondary" onClick={() => { setStep('select'); setInvoiceUrl(null); setQrCode(null) }} style={{ flex: 1 }}>
                   Back
                 </button>
                 <button
                   className="btn-primary"
-                  onClick={handleConfirmPayment}
+                  onClick={handleIHavePaid}
                   style={{ flex: 2, padding: '13px', fontSize: 15 }}
                 >
-                  I've Sent the Payment
+                  I've Paid — Check Status
                 </button>
               </div>
 
               <p style={{ margin: 0, fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', lineHeight: 1.6 }}>
-                This is a demo. No real USDT is transferred — clicking "I've Sent" simulates a blockchain confirmation webhook that credits your Stars balance.
+                Send the exact USDT amount via the Plisio invoice. Once the blockchain confirms your payment, your Stars are credited automatically.
               </p>
             </>
           )}
@@ -309,12 +355,22 @@ export default function WalletModal({ onClose }: Props) {
               }} />
               <div style={{ textAlign: 'center' }}>
                 <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>
-                  Awaiting blockchain confirmation
+                  Waiting for Plisio confirmation
                 </div>
                 <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-                  Listening for USDT deposit on TRC20...
+                  Checking every 3 seconds for blockchain confirmation...
                 </div>
               </div>
+              {invoiceUrl && (
+                <a
+                  href={invoiceUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ fontSize: 12, color: 'var(--accent)', textDecoration: 'none' }}
+                >
+                  View Plisio Invoice ↗
+                </a>
+              )}
               <div style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'ui-monospace, monospace' }}>
                 Order: {orderId?.slice(0, 8)}…
               </div>

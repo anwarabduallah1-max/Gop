@@ -51,8 +51,8 @@ export default function WithdrawModal({ request, onClose, onWithdrawn }: Props) 
 
     setPayoutId(newPayoutId)
 
-    // 2. Call the payout-webhook edge function to simulate the automated payout API call.
-    const fnUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/payout-webhook`
+    // 2. Call the plisio-payout edge function to execute the real Plisio withdrawal API call.
+    const fnUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/plisio-payout`
     try {
       const res = await fetch(fnUrl, {
         method: 'POST',
@@ -179,7 +179,7 @@ export default function WithdrawModal({ request, onClose, onWithdrawn }: Props) 
               </button>
 
               <p style={{ margin: 0, fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', lineHeight: 1.6 }}>
-                This is a demo. No real USDT is transferred — the payout API call is simulated and the request is marked as "Paid Out" automatically.
+                Powered by Plisio. Your USDT is sent via the Plisio Cashout API to your TRC20 wallet address.
               </p>
             </>
           )}
@@ -196,10 +196,10 @@ export default function WithdrawModal({ request, onClose, onWithdrawn }: Props) 
               }} />
               <div style={{ textAlign: 'center' }}>
                 <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>
-                  Calling automated payout API
+                  Calling Plisio payout API
                 </div>
                 <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-                  Transferring {net.toFixed(2)} USDT to your wallet...
+                  Transferring {net.toFixed(2)} USDT to your wallet via Plisio...
                 </div>
               </div>
               {payoutId && (
