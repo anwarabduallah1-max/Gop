@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import { supabase } from '../lib/supabase'
@@ -30,6 +30,8 @@ export default function WalletModal({ onClose }: Props) {
   const [txHash, setTxHash] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
+  const [checking, setChecking] = useState(false)
+  const [plisioStatus, setPlisioStatus] = useState<string | null>(null)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const getAmount = () => {
@@ -37,28 +39,61 @@ export default function WalletModal({ onClose }: Props) {
     return selected ?? 0
   }
 
-  // Poll the payment_orders table for status changes (Plisio webhook updates it).
+  const callStatusCheck = useCallback(async (id: string, simulate: boolean): Promise<boolean> => {
+    const fnUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/plisio-check-invoice-status`
+    try {
+      const res = await fetch(fnUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({ order_id: id, simulate_success: simulate }),
+      })
+      const json = await res.json()
+
+      if (json.success && json.status === 'confirmed') {
+        setTxHash(json.tx_hash ?? null)
+        await refreshProfile()
+        setStep('done')
+        return true
+      }
+
+      if (json.plisio_status) {
+        setPlisioStatus(json.plisio_status)
+      }
+      return false
+    } catch {
+      return false
+    }
+  }, [refreshProfile])
+
+  // Poll the Plisio API directly via edge function every 5 seconds.
   useEffect(() => {
     if (step !== 'processing' || !orderId) return
 
-    const poll = async () => {
-      const { data: order } = await supabase
-        .from('payment_orders')
-        .select('status, tx_hash')
-        .eq('id', orderId)
-        .maybeSingle()
+    let cancelled = false
 
-      if (order?.status === 'confirmed') {
-        if (pollRef.current) clearInterval(pollRef.current)
-        setTxHash(order.tx_hash ?? null)
-        await refreshProfile()
-        setStep('done')
+    const poll = async () => {
+      if (cancelled) return
+      const confirmed = await callStatusCheck(orderId, false)
+      if (confirmed && pollRef.current) {
+        clearInterval(pollRef.current)
+        pollRef.current = null
       }
     }
 
-    pollRef.current = setInterval(poll, 3000)
-    return () => { if (pollRef.current) clearInterval(pollRef.current) }
-  }, [step, orderId])
+    poll() // immediate first check
+    pollRef.current = setInterval(poll, 5000)
+    return () => {
+      cancelled = true
+      if (pollRef.current) {
+        clearInterval(pollRef.current)
+        pollRef.current = null
+      }
+    }
+  }, [step, orderId, callStatusCheck])
 
   const handleProceedToPay = async () => {
     const amt = getAmount()
@@ -67,7 +102,6 @@ export default function WalletModal({ onClose }: Props) {
     setCreating(true)
 
     try {
-      // 1. Create a pending payment_order row.
       const { data: order, error: insertErr } = await supabase
         .from('payment_orders')
         .insert({
@@ -86,7 +120,6 @@ export default function WalletModal({ onClose }: Props) {
 
       setOrderId(order.id)
 
-      // 2. Call the plisio-create-invoice edge function to create a real Plisio invoice.
       const fnUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/plisio-create-invoice`
       const res = await fetch(fnUrl, {
         method: 'POST',
@@ -114,7 +147,25 @@ export default function WalletModal({ onClose }: Props) {
   }
 
   const handleIHavePaid = () => {
+    setPlisioStatus(null)
     setStep('processing')
+  }
+
+  const handleCheckNow = async () => {
+    if (!orderId || checking) return
+    setChecking(true)
+    await callStatusCheck(orderId, false)
+    setChecking(false)
+  }
+
+  const handleSimulateSuccess = async () => {
+    if (!orderId || checking) return
+    setChecking(true)
+    const confirmed = await callStatusCheck(orderId, true)
+    setChecking(false)
+    if (!confirmed) {
+      setError('Failed to simulate payment. Please try again.')
+    }
   }
 
   const handleClose = () => {
@@ -137,7 +188,7 @@ export default function WalletModal({ onClose }: Props) {
             <p style={{ margin: '4px 0 0', fontSize: 14, color: 'var(--text-muted)' }}>
               {step === 'select' && '1 Star = 1 USDT · Powered by Plisio'}
               {step === 'pay' && 'Scan the QR code or open the payment link'}
-              {step === 'processing' && 'Waiting for Plisio blockchain confirmation'}
+              {step === 'processing' && 'Polling Plisio API for confirmation'}
               {step === 'done' && 'Your Stars have been credited'}
             </p>
           </div>
@@ -345,7 +396,7 @@ export default function WalletModal({ onClose }: Props) {
 
           {/* STEP: PROCESSING */}
           {step === 'processing' && (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 18, padding: '40px 0 20px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 18, padding: '30px 0 20px' }}>
               <div style={{
                 width: 56, height: 56,
                 border: '3px solid var(--accent-muted)',
@@ -358,7 +409,9 @@ export default function WalletModal({ onClose }: Props) {
                   Waiting for Plisio confirmation
                 </div>
                 <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-                  Checking every 3 seconds for blockchain confirmation...
+                  {plisioStatus
+                    ? `Plisio status: ${plisioStatus} — checking again in 5s...`
+                    : 'Polling Plisio API every 5 seconds for blockchain confirmation...'}
                 </div>
               </div>
               {invoiceUrl && (
@@ -374,6 +427,34 @@ export default function WalletModal({ onClose }: Props) {
               <div style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'ui-monospace, monospace' }}>
                 Order: {orderId?.slice(0, 8)}…
               </div>
+
+              {/* Manual check + test bypass buttons */}
+              <div style={{ display: 'flex', gap: 10, width: '100%', marginTop: 4 }}>
+                <button
+                  className="btn-secondary"
+                  onClick={handleCheckNow}
+                  disabled={checking}
+                  style={{ flex: 1, padding: '10px', fontSize: 13 }}
+                >
+                  {checking ? 'Checking...' : 'Check Status Now'}
+                </button>
+                <button
+                  onClick={handleSimulateSuccess}
+                  disabled={checking}
+                  style={{
+                    flex: 1, padding: '10px', fontSize: 13,
+                    background: 'transparent',
+                    border: '1px dashed rgba(245,200,66,0.4)',
+                    color: 'var(--accent)',
+                    borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit',
+                  }}
+                >
+                  Simulate Payment Success
+                </button>
+              </div>
+              <p style={{ margin: 0, fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', lineHeight: 1.5 }}>
+                "Check Status Now" queries the Plisio API directly. "Simulate Payment Success" is a test bypass for dev/preview environments.
+              </p>
             </div>
           )}
 
