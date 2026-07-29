@@ -14,13 +14,16 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { amount, order_id } = await req.json()
+    const { amount, order_id, currency } = await req.json()
     if (!amount || !order_id) {
       return new Response(
         JSON.stringify({ error: 'amount and order_id are required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       )
     }
+
+    const SUPPORTED_CURRENCIES = ['USDT_BSC', 'USDT_TRX', 'LTC']
+    const plisioCurrency = SUPPORTED_CURRENCIES.includes(currency) ? currency : 'USDT_BSC'
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -50,7 +53,7 @@ Deno.serve(async (req: Request) => {
       api_key: apiKey,
       source_currency: 'USD',
       source_amount: String(amount),
-      currency: 'USDT_TRX',
+      currency: plisioCurrency,
       order_name: `Stars ${amount}`,
       order_number: orderNumber,
       callback_url: callbackUrl,
@@ -81,6 +84,7 @@ Deno.serve(async (req: Request) => {
         plisio_invoice_url: invoiceUrl,
         plisio_invoice_qr: qrCode,
         plisio_order_number: orderNumber,
+        plisio_currency: plisioCurrency,
       })
       .eq('id', order_id)
 
@@ -91,7 +95,7 @@ Deno.serve(async (req: Request) => {
         invoice_url: invoiceUrl,
         qr_code: qrCode,
         amount: amount,
-        currency: 'USDT_TRX',
+        currency: plisioCurrency,
         order_id: order_id,
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },

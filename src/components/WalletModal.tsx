@@ -13,6 +13,14 @@ const PACKAGES = [
 
 type Step = 'select' | 'pay' | 'processing' | 'done'
 
+type CurrencyCode = 'USDT_BSC' | 'USDT_TRX' | 'LTC'
+
+const CURRENCIES: { code: CurrencyCode; label: string; network: string; badge?: string }[] = [
+  { code: 'USDT_BSC', label: 'USDT (BEP-20)', network: 'BSC / BNB Chain', badge: 'Recommended · Low Fees' },
+  { code: 'USDT_TRX', label: 'USDT (TRC-20)', network: 'Tron' },
+  { code: 'LTC', label: 'Litecoin', network: 'Litecoin' },
+]
+
 interface Props {
   onClose: () => void
 }
@@ -23,11 +31,13 @@ export default function WalletModal({ onClose }: Props) {
 
   const [selected, setSelected] = useState<number | null>(50)
   const [custom, setCustom] = useState('')
+  const [currency, setCurrency] = useState<CurrencyCode>('USDT_BSC')
   const [step, setStep] = useState<Step>('select')
   const [orderId, setOrderId] = useState<string | null>(null)
   const [invoiceUrl, setInvoiceUrl] = useState<string | null>(null)
   const [qrCode, setQrCode] = useState<string | null>(null)
   const [txHash, setTxHash] = useState<string | null>(null)
+  const [invoiceCurrency, setInvoiceCurrency] = useState<CurrencyCode>('USDT_BSC')
   const [error, setError] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
   const [checking, setChecking] = useState(false)
@@ -128,7 +138,7 @@ export default function WalletModal({ onClose }: Props) {
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
           apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
         },
-        body: JSON.stringify({ amount: amt, order_id: order.id }),
+        body: JSON.stringify({ amount: amt, order_id: order.id, currency }),
       })
       const json = await res.json()
 
@@ -137,6 +147,7 @@ export default function WalletModal({ onClose }: Props) {
       }
 
       setInvoiceUrl(json.invoice_url)
+      setInvoiceCurrency(currency)
       setQrCode(json.qr_code)
       setStep('pay')
     } catch (e) {
@@ -261,6 +272,35 @@ export default function WalletModal({ onClose }: Props) {
               </div>
 
               <div>
+                <div className="field-label">Currency</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {CURRENCIES.map(c => (
+                    <button
+                      key={c.code}
+                      onClick={() => setCurrency(c.code)}
+                      style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        background: currency === c.code ? 'var(--accent-muted)' : 'var(--surface-raised)',
+                        border: currency === c.code ? '1px solid rgba(245,200,66,0.5)' : '1px solid var(--border)',
+                        borderRadius: 10, padding: '10px 14px', cursor: 'pointer',
+                        fontFamily: 'inherit', textAlign: 'left', transition: 'all 0.15s ease',
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{c.label}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{c.network}</div>
+                      </div>
+                      {c.badge && (
+                        <span style={{ fontSize: 9, fontWeight: 800, color: 'var(--accent)', letterSpacing: '0.05em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
+                          {c.badge}
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
                 <label className="field-label">Custom Amount</label>
                 <div style={{ display: 'flex', gap: 10 }}>
                   <input
@@ -319,7 +359,7 @@ export default function WalletModal({ onClose }: Props) {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, textAlign: 'left' }}>
                   <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Network</span>
                   <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
-                    Tron (TRC20) · USDT
+                    {CURRENCIES.find(c => c.code === invoiceCurrency)?.label ?? invoiceCurrency} · {CURRENCIES.find(c => c.code === invoiceCurrency)?.network ?? ''}
                   </span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, textAlign: 'left' }}>
