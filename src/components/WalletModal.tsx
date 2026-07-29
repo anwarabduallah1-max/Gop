@@ -49,7 +49,7 @@ export default function WalletModal({ onClose }: Props) {
     return selected ?? 0
   }
 
-  const callStatusCheck = useCallback(async (id: string, simulate: boolean): Promise<boolean> => {
+  const callStatusCheck = useCallback(async (id: string): Promise<boolean> => {
     const fnUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/plisio-check-invoice-status`
     try {
       const res = await fetch(fnUrl, {
@@ -59,7 +59,7 @@ export default function WalletModal({ onClose }: Props) {
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
           apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
         },
-        body: JSON.stringify({ order_id: id, simulate_success: simulate }),
+        body: JSON.stringify({ order_id: id }),
       })
       const json = await res.json()
 
@@ -87,14 +87,14 @@ export default function WalletModal({ onClose }: Props) {
 
     const poll = async () => {
       if (cancelled) return
-      const confirmed = await callStatusCheck(orderId, false)
+      const confirmed = await callStatusCheck(orderId)
       if (confirmed && pollRef.current) {
         clearInterval(pollRef.current)
         pollRef.current = null
       }
     }
 
-    poll() // immediate first check
+    poll()
     pollRef.current = setInterval(poll, 5000)
     return () => {
       cancelled = true
@@ -150,6 +150,10 @@ export default function WalletModal({ onClose }: Props) {
       setInvoiceCurrency(currency)
       setQrCode(json.qr_code)
       setStep('pay')
+
+      if (json.invoice_url) {
+        window.open(json.invoice_url, '_blank', 'noopener,noreferrer')
+      }
     } catch (e) {
       setError((e as Error).message)
     } finally {
@@ -165,18 +169,8 @@ export default function WalletModal({ onClose }: Props) {
   const handleCheckNow = async () => {
     if (!orderId || checking) return
     setChecking(true)
-    await callStatusCheck(orderId, false)
+    await callStatusCheck(orderId)
     setChecking(false)
-  }
-
-  const handleSimulateSuccess = async () => {
-    if (!orderId || checking) return
-    setChecking(true)
-    const confirmed = await callStatusCheck(orderId, true)
-    setChecking(false)
-    if (!confirmed) {
-      setError('Failed to simulate payment. Please try again.')
-    }
   }
 
   const handleClose = () => {
@@ -198,7 +192,7 @@ export default function WalletModal({ onClose }: Props) {
             </h2>
             <p style={{ margin: '4px 0 0', fontSize: 14, color: 'var(--text-muted)' }}>
               {step === 'select' && '1 Star = 1 USDT · Powered by Plisio'}
-              {step === 'pay' && 'Scan the QR code or open the payment link'}
+              {step === 'pay' && 'A Plisio payment page opened in a new tab — complete the crypto transaction there'}
               {step === 'processing' && 'Polling Plisio API for confirmation'}
               {step === 'done' && 'Your Stars have been credited'}
             </p>
@@ -429,7 +423,7 @@ export default function WalletModal({ onClose }: Props) {
               </div>
 
               <p style={{ margin: 0, fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', lineHeight: 1.6 }}>
-                Send the exact USDT amount via the Plisio invoice. Once the blockchain confirms your payment, your Stars are credited automatically.
+                A Plisio payment page opened in a new tab. Complete the crypto transaction there, then click "I've Paid" below. Your Stars are credited automatically once the blockchain confirms.
               </p>
             </>
           )}
@@ -468,7 +462,6 @@ export default function WalletModal({ onClose }: Props) {
                 Order: {orderId?.slice(0, 8)}…
               </div>
 
-              {/* Manual check + test bypass buttons */}
               <div style={{ display: 'flex', gap: 10, width: '100%', marginTop: 4 }}>
                 <button
                   className="btn-secondary"
@@ -478,23 +471,7 @@ export default function WalletModal({ onClose }: Props) {
                 >
                   {checking ? 'Checking...' : 'Check Status Now'}
                 </button>
-                <button
-                  onClick={handleSimulateSuccess}
-                  disabled={checking}
-                  style={{
-                    flex: 1, padding: '10px', fontSize: 13,
-                    background: 'transparent',
-                    border: '1px dashed rgba(245,200,66,0.4)',
-                    color: 'var(--accent)',
-                    borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit',
-                  }}
-                >
-                  Simulate Payment Success
-                </button>
               </div>
-              <p style={{ margin: 0, fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', lineHeight: 1.5 }}>
-                "Check Status Now" queries the Plisio API directly. "Simulate Payment Success" is a test bypass for dev/preview environments.
-              </p>
             </div>
           )}
 

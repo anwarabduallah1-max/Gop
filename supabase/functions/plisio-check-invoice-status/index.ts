@@ -14,7 +14,7 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { order_id, simulate_success } = await req.json()
+    const { order_id } = await req.json()
 
     if (!order_id) {
       return new Response(
@@ -51,32 +51,6 @@ Deno.serve(async (req: Request) => {
           already_confirmed: true,
           stars_amount: order.stars_amount,
           message: 'Already confirmed',
-        }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      )
-    }
-
-    // Test bypass: simulate a successful payment without calling Plisio.
-    if (simulate_success === true) {
-      const { error: rpcErr } = await supabase.rpc('confirm_deposit', {
-        p_order_id: order.id,
-        p_tx_hash: '0x_simulated_' + order.id.slice(0, 8),
-      })
-
-      if (rpcErr) {
-        return new Response(
-          JSON.stringify({ error: rpcErr.message }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-        )
-      }
-
-      return new Response(
-        JSON.stringify({
-          success: true,
-          status: 'confirmed',
-          simulated: true,
-          stars_amount: order.stars_amount,
-          message: 'Payment simulated and Stars credited.',
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       )
