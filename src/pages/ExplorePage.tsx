@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import type { Request } from '../lib/types'
@@ -11,6 +11,7 @@ type Filter = 'all' | 'active' | 'funded'
 export default function ExplorePage() {
   const { user } = useAuth()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const [requests, setRequests] = useState<Request[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<Filter>('all')
@@ -42,6 +43,14 @@ export default function ExplorePage() {
     setLoading(true)
     fetchRequests()
   }, [filter])
+
+  // Deep link: ?focus=<id> auto-opens the donate modal for the mandatory post.
+  useEffect(() => {
+    const focusId = searchParams.get('focus')
+    if (!focusId || requests.length === 0) return
+    const target = requests.find(r => r.id === focusId)
+    if (target) setSelected(target)
+  }, [searchParams, requests])
 
   const filtered = requests.filter(r =>
     r.title.toLowerCase().includes(search.toLowerCase()) ||

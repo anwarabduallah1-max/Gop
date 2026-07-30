@@ -3,6 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
+import { MANDATORY_DONATION_POST_ID } from '../lib/config'
+import type { Request } from '../lib/types'
+import DonationGateModal from '../components/DonationGateModal'
 
 const PLATFORM_FEE = 0.10
 const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5 MB
@@ -22,6 +25,7 @@ export default function CreateRequestPage() {
   const [baseTarget, setBaseTarget] = useState('')
   const [loading, setLoading] = useState(false)
   const [imagePreviewError, setImagePreviewError] = useState(false)
+  const [gateRequest, setGateRequest] = useState<Request | null>(null)
 
   const [imageMode, setImageMode] = useState<ImageMode>('url')
   const [uploading, setUploading] = useState(false)
@@ -75,6 +79,30 @@ export default function CreateRequestPage() {
     if (base <= 0) { showToast('Please enter a valid target amount', 'error'); return }
 
     setLoading(true)
+
+    // Mandatory donation prerequisite: the user must have donated to the community fund post.
+    const { data: priorDonation } = await supabase
+      .from('transactions')
+      .select('id')
+      .eq('donor_id', user.id)
+      .eq('request_id', MANDATORY_DONATION_POST_ID)
+      .limit(1)
+      .maybeSingle()
+
+    if (!priorDonation) {
+      const { data: mandatoryReq } = await supabase
+        .from('requests')
+        .select('*')
+        .eq('id', MANDATORY_DONATION_POST_ID)
+        .maybeSingle()
+      setLoading(false)
+      if (mandatoryReq) {
+        setGateRequest(mandatoryReq as Request)
+      } else {
+        showToast('You must donate to the community fund before creating a request.', 'error')
+      }
+      return
+    }
 
     let finalImageUrl = imageUrl.trim()
 
@@ -373,6 +401,13 @@ export default function CreateRequestPage() {
           </div>
         </div>
       </div>
+
+      {gateRequest && (
+        <DonationGateModal
+          mandatoryRequest={gateRequest}
+          onClose={() => setGateRequest(null)}
+        />
+      )}
     </div>
   )
 }
