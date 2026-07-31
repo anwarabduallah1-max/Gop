@@ -29,7 +29,7 @@ export default function LoginPage() {
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <div style={{ fontSize: 36, marginBottom: 12 }}>★</div>
           <h1 style={{ margin: '0 0 8px', fontSize: 26, fontWeight: 900, letterSpacing: '-0.02em' }}>
-            Sign in to StarGive
+            Sign in to StarLift
           </h1>
           <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: 14 }}>
             Continue to your account

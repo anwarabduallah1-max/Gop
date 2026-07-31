@@ -31,7 +31,7 @@ export default function Header() {
           <Link to="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 22, lineHeight: 1 }}>★</span>
             <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-              Star<span style={{ color: 'var(--accent)' }}>Give</span>
+              Star<span style={{ color: 'var(--accent)' }}>Lift</span>
             </span>
           </Link>
 

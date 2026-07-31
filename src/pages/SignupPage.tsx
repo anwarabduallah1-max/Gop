@@ -27,7 +27,7 @@ export default function SignupPage() {
     if (error) {
       showToast(error.message, 'error')
     } else {
-      showToast('Account created! Welcome to StarGive.', 'success')
+      showToast('Account created! Welcome to StarLift.', 'success')
       navigate('/')
     }
   }
@@ -41,7 +41,7 @@ export default function SignupPage() {
             Create an account
           </h1>
           <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: 14 }}>
-            Join StarGive and start funding dreams
+            Join StarLift and start funding dreams
           </p>
         </div>
 
