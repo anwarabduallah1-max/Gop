@@ -16,10 +16,11 @@ export default function DonateModal({ request, onClose, onDonated }: Props) {
   const [amount, setAmount] = useState(10)
   const [loading, setLoading] = useState(false)
 
-  const remaining = Math.max(request.final_target - request.current_stars, 0)
+  const isUnlimited = request.is_unlimited
+  const remaining = isUnlimited ? Infinity : Math.max(request.final_target - request.current_stars, 0)
   const maxDonate = Math.min(profile?.stars_balance ?? 0, remaining > 0 ? remaining : (profile?.stars_balance ?? 0))
-  const pct = Math.min((request.current_stars / request.final_target) * 100, 100)
-  const isFunded = request.status === 'funded'
+  const pct = isUnlimited ? 0 : Math.min((request.current_stars / request.final_target) * 100, 100)
+  const isFunded = !isUnlimited && request.status === 'funded'
 
   const handleDonate = async () => {
     if (!profile) return
@@ -81,12 +82,20 @@ export default function DonateModal({ request, onClose, onDonated }: Props) {
               <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text-primary)', marginBottom: 6 }}>
                 {request.title}
               </div>
-              <div className="progress-track" style={{ marginBottom: 5 }}>
-                <div className={`progress-fill ${isFunded ? 'funded' : ''}`} style={{ width: `${pct}%` }} />
-              </div>
-              <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                ★ {request.current_stars.toFixed(0)} / ★ {request.final_target.toFixed(0)} ({pct.toFixed(0)}%)
-              </div>
+              {isUnlimited ? (
+                <div style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 600 }}>
+                  ★ {request.current_stars.toFixed(0)} raised · Unlimited goal
+                </div>
+              ) : (
+                <>
+                  <div className="progress-track" style={{ marginBottom: 5 }}>
+                    <div className={`progress-fill ${isFunded ? 'funded' : ''}`} style={{ width: `${pct}%` }} />
+                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                    ★ {request.current_stars.toFixed(0)} / ★ {request.final_target.toFixed(0)} ({pct.toFixed(0)}%)
+                  </div>
+                </>
+              )}
             </div>
           </div>
 

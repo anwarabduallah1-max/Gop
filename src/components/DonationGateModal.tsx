@@ -55,12 +55,30 @@ export default function DonationGateModal({ mandatoryRequest, onClose }: Props) 
             <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text-primary)', marginBottom: 6 }}>
               {mandatoryRequest.title}
             </div>
-            <div className="progress-track" style={{ marginBottom: 5 }}>
-              <div className="progress-fill" style={{ width: `${Math.min((mandatoryRequest.current_stars / mandatoryRequest.final_target) * 100, 100)}%` }} />
-            </div>
-            <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-              ★ {mandatoryRequest.current_stars.toFixed(0)} / ★ {mandatoryRequest.final_target.toFixed(0)}
-            </div>
+            {mandatoryRequest.is_unlimited ? (
+              <div style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 600, marginBottom: 8 }}>
+                ★ {mandatoryRequest.current_stars.toFixed(0)} raised · Unlimited goal
+              </div>
+            ) : (
+              <>
+                <div className="progress-track" style={{ marginBottom: 5 }}>
+                  <div className="progress-fill" style={{ width: `${Math.min((mandatoryRequest.current_stars / mandatoryRequest.final_target) * 100, 100)}%` }} />
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                  ★ {mandatoryRequest.current_stars.toFixed(0)} / ★ {mandatoryRequest.final_target.toFixed(0)}
+                </div>
+              </>
+            )}
+            {mandatoryRequest.product_url && (
+              <a
+                href={mandatoryRequest.product_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ display: 'inline-block', marginTop: 10, fontSize: 13, color: 'var(--accent)', fontWeight: 600 }}
+              >
+                View post ↗
+              </a>
+            )}
           </div>
 
           <div style={{ display: 'flex', gap: 10 }}>

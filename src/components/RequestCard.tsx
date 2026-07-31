@@ -91,33 +91,48 @@ export default function RequestCard({ request, onClick }: Props) {
           )}
         </div>
 
-        {/* Progress */}
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 7 }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: isFunded ? 'var(--success)' : 'var(--accent)' }}>
+        {/* Progress / Raised */}
+        {request.is_unlimited ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent)' }}>
               ★ {request.current_stars.toFixed(0)} raised
             </span>
-            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-              {pct.toFixed(0)}%
+            <span style={{
+              fontSize: 10, fontWeight: 700, color: 'var(--accent)',
+              background: 'var(--accent-muted)', border: '1px solid rgba(245,200,66,0.3)',
+              padding: '2px 8px', borderRadius: 999, letterSpacing: '0.05em', textTransform: 'uppercase',
+            }}>
+              Unlimited
             </span>
           </div>
-          <div className="progress-track">
-            <div
-              className={`progress-fill ${isFunded ? 'funded' : ''}`}
-              style={{ width: `${pct}%` }}
-            />
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
-            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-              Goal: ★ {request.final_target.toFixed(0)}
-            </span>
-            {!isFunded && (
-              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                ★ {remaining.toFixed(0)} to go
+        ) : (
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 7 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: isFunded ? 'var(--success)' : 'var(--accent)' }}>
+                ★ {request.current_stars.toFixed(0)} raised
               </span>
-            )}
+              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                {pct.toFixed(0)}%
+              </span>
+            </div>
+            <div className="progress-track">
+              <div
+                className={`progress-fill ${isFunded ? 'funded' : ''}`}
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
+              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                Goal: ★ {request.final_target.toFixed(0)}
+              </span>
+              {!isFunded && (
+                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                  ★ {remaining.toFixed(0)} to go
+                </span>
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Creator */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto' }}>

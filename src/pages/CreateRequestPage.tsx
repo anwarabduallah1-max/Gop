@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
@@ -32,6 +32,34 @@ export default function CreateRequestPage() {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
   const [dragOver, setDragOver] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const [hasDonatedMandatory, setHasDonatedMandatory] = useState<boolean | null>(null)
+  const [mandatoryReq, setMandatoryReq] = useState<Request | null>(null)
+
+  useEffect(() => {
+    if (!user) return
+    let cancelled = false
+    ;(async () => {
+      const { data: donation } = await supabase
+        .from('transactions')
+        .select('id')
+        .eq('donor_id', user.id)
+        .eq('request_id', MANDATORY_DONATION_POST_ID)
+        .limit(1)
+        .maybeSingle()
+      const { data: req } = await supabase
+        .from('requests')
+        .select('*')
+        .eq('id', MANDATORY_DONATION_POST_ID)
+        .maybeSingle()
+      if (cancelled) return
+      setHasDonatedMandatory(!!donation)
+      setMandatoryReq(req as Request | null)
+    })()
+    return () => { cancelled = true }
+  }, [user])
+
+  const blockedFromPosting = hasDonatedMandatory === false
 
   const base = parseFloat(baseTarget) || 0
   const fee = base * PLATFORM_FEE
@@ -327,13 +355,38 @@ export default function CreateRequestPage() {
               </p>
             </div>
 
+            {blockedFromPosting && (
+              <div style={{
+                padding: '14px 16px',
+                background: 'rgba(240,96,96,0.08)',
+                border: '1px solid rgba(240,96,96,0.3)',
+                borderRadius: 10,
+                display: 'flex', flexDirection: 'column', gap: 10,
+              }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--error)' }}>
+                  You must donate to the BMW Motorcycle post before creating a request.
+                </div>
+                <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                  This featured post is a one-time prerequisite. Donate any amount of Stars to it, then come back and publish your request.
+                </div>
+                <button
+                  type="button"
+                  className="btn-primary"
+                  onClick={() => setGateRequest(mandatoryReq ?? null)}
+                  style={{ alignSelf: 'flex-start', padding: '10px 20px', fontSize: 14 }}
+                >
+                  Go to BMW Motorcycle post →
+                </button>
+              </div>
+            )}
+
             <button
               type="submit"
               className="btn-primary"
-              disabled={loading || !title.trim() || base <= 0 || (imageMode === 'upload' && uploading)}
+              disabled={loading || blockedFromPosting || !title.trim() || base <= 0 || (imageMode === 'upload' && uploading)}
               style={{ width: '100%', padding: '14px', fontSize: 15 }}
             >
-              {uploading ? 'Uploading image...' : loading ? 'Creating...' : 'Create Request'}
+              {uploading ? 'Uploading image...' : loading ? 'Creating...' : blockedFromPosting ? 'Donate to BMW post first' : 'Create Request'}
             </button>
           </form>
 
