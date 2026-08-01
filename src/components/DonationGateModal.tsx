@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import type { Request } from '../lib/types'
+import { MANDATORY_MIN_DONATION } from '../lib/config'
 
 interface Props {
   mandatoryRequest: Request
@@ -29,11 +30,13 @@ export default function DonationGateModal({ mandatoryRequest, onClose }: Props) 
           </div>
 
           <h2 style={{ margin: '0 0 10px', fontSize: 22, fontWeight: 800, color: 'var(--text-primary)' }}>
-            Donation Required
+            Support Required First
           </h2>
 
           <p style={{ margin: '0 0 8px', fontSize: 15, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-            Before you can create your own request, you need to make a donation to the community fund post.
+            You must support the Featured Platform Campaign with a minimum of{' '}
+            <span style={{ color: 'var(--accent)', fontWeight: 700 }}>${MANDATORY_MIN_DONATION}</span>{' '}
+            before publishing your own campaign.
           </p>
           <p style={{ margin: '0 0 22px', fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.6 }}>
             This keeps StarLift a giving community — everyone who asks for help has helped someone first.
@@ -52,6 +55,16 @@ export default function DonationGateModal({ mandatoryRequest, onClose }: Props) 
             padding: '14px', background: 'var(--surface-raised)',
             borderRadius: 10, border: '1px solid var(--border)', marginBottom: 22, textAlign: 'left',
           }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+              <span style={{
+                fontSize: 10, fontWeight: 800, color: '#0d0f14',
+                background: 'linear-gradient(135deg, #f5c842, #f7d265)',
+                padding: '2px 8px', borderRadius: 999,
+                letterSpacing: '0.07em', textTransform: 'uppercase',
+              }}>
+                ★ Official Campaign
+              </span>
+            </div>
             <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text-primary)', marginBottom: 6 }}>
               {mandatoryRequest.title}
             </div>
@@ -86,7 +99,7 @@ export default function DonationGateModal({ mandatoryRequest, onClose }: Props) 
               Maybe Later
             </button>
             <button className="btn-primary" onClick={goDonate} style={{ flex: 1, padding: '12px', fontSize: 14 }}>
-              Donate Now
+              Donate Now →
             </button>
           </div>
         </div>

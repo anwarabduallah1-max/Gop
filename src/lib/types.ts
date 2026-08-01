@@ -18,6 +18,7 @@ export interface Request {
   final_target: number
   current_stars: number
   is_unlimited: boolean
+  is_platform_post: boolean
   status: 'active' | 'funded' | 'closed' | 'paid_out'
   created_at: string
   updated_at: string

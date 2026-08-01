@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
-import { MANDATORY_DONATION_POST_ID } from '../lib/config'
+import { MANDATORY_DONATION_POST_ID, MANDATORY_MIN_DONATION } from '../lib/config'
 import type { Request } from '../lib/types'
 import DonationGateModal from '../components/DonationGateModal'
 
@@ -33,33 +33,34 @@ export default function CreateRequestPage() {
   const [dragOver, setDragOver] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const [hasDonatedMandatory, setHasDonatedMandatory] = useState<boolean | null>(null)
+  const [featuredDonationSum, setFeaturedDonationSum] = useState<number | null>(null)
   const [mandatoryReq, setMandatoryReq] = useState<Request | null>(null)
 
   useEffect(() => {
     if (!user) return
     let cancelled = false
     ;(async () => {
-      const { data: donation } = await supabase
+      const { data: donations } = await supabase
         .from('transactions')
-        .select('id')
+        .select('stars_amount')
         .eq('donor_id', user.id)
         .eq('request_id', MANDATORY_DONATION_POST_ID)
-        .limit(1)
-        .maybeSingle()
+      if (cancelled) return
+      const sum = (donations ?? []).reduce((s, t: { stars_amount: number }) => s + (t.stars_amount ?? 0), 0)
+      setFeaturedDonationSum(sum)
       const { data: req } = await supabase
         .from('requests')
         .select('*')
         .eq('id', MANDATORY_DONATION_POST_ID)
         .maybeSingle()
       if (cancelled) return
-      setHasDonatedMandatory(!!donation)
       setMandatoryReq(req as Request | null)
     })()
     return () => { cancelled = true }
   }, [user])
 
-  const blockedFromPosting = hasDonatedMandatory === false
+  const blockedFromPosting = featuredDonationSum !== null && featuredDonationSum < MANDATORY_MIN_DONATION
+  const remainingToDonate = featuredDonationSum !== null ? Math.max(MANDATORY_MIN_DONATION - featuredDonationSum, 0) : MANDATORY_MIN_DONATION
 
   const base = parseFloat(baseTarget) || 0
   const fee = base * PLATFORM_FEE
@@ -108,16 +109,17 @@ export default function CreateRequestPage() {
 
     setLoading(true)
 
-    // Mandatory donation prerequisite: the user must have donated to the community fund post.
-    const { data: priorDonation } = await supabase
+    // Mandatory donation prerequisite: the user must have donated at least MANDATORY_MIN_DONATION
+    // Stars (cumulatively) to the featured platform post.
+    const { data: donations } = await supabase
       .from('transactions')
-      .select('id')
+      .select('stars_amount')
       .eq('donor_id', user.id)
       .eq('request_id', MANDATORY_DONATION_POST_ID)
-      .limit(1)
-      .maybeSingle()
 
-    if (!priorDonation) {
+    const sum = (donations ?? []).reduce((s, t: { stars_amount: number }) => s + (t.stars_amount ?? 0), 0)
+
+    if (sum < MANDATORY_MIN_DONATION) {
       const { data: mandatoryReq } = await supabase
         .from('requests')
         .select('*')
@@ -127,7 +129,7 @@ export default function CreateRequestPage() {
       if (mandatoryReq) {
         setGateRequest(mandatoryReq as Request)
       } else {
-        showToast('You must donate to the community fund before creating a request.', 'error')
+        showToast(`You must donate at least $${MANDATORY_MIN_DONATION} to the featured campaign before creating a request.`, 'error')
       }
       return
     }
@@ -364,10 +366,12 @@ export default function CreateRequestPage() {
                 display: 'flex', flexDirection: 'column', gap: 10,
               }}>
                 <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--error)' }}>
-                  You must donate to the BMW Motorcycle post before creating a request.
+                  Support the Official Platform Campaign first
                 </div>
                 <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                  This featured post is a one-time prerequisite. Donate any amount of Stars to it, then come back and publish your request.
+                  You've donated <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>★ {featuredDonationSum?.toFixed(0) ?? 0}</span> of the
+                  minimum <span style={{ fontWeight: 700, color: 'var(--accent)' }}>★ {MANDATORY_MIN_DONATION}</span> required.
+                  {remainingToDonate > 0 && <> Donate <span style={{ fontWeight: 700, color: 'var(--accent)' }}>★ {remainingToDonate}</span> more to unlock posting.</>}
                 </div>
                 <button
                   type="button"
@@ -375,7 +379,7 @@ export default function CreateRequestPage() {
                   onClick={() => setGateRequest(mandatoryReq ?? null)}
                   style={{ alignSelf: 'flex-start', padding: '10px 20px', fontSize: 14 }}
                 >
-                  Go to BMW Motorcycle post →
+                  Go to Featured Campaign →
                 </button>
               </div>
             )}
@@ -386,7 +390,7 @@ export default function CreateRequestPage() {
               disabled={loading || blockedFromPosting || !title.trim() || base <= 0 || (imageMode === 'upload' && uploading)}
               style={{ width: '100%', padding: '14px', fontSize: 15 }}
             >
-              {uploading ? 'Uploading image...' : loading ? 'Creating...' : blockedFromPosting ? 'Donate to BMW post first' : 'Create Request'}
+              {uploading ? 'Uploading image...' : loading ? 'Creating...' : blockedFromPosting ? 'Support featured campaign first' : 'Create Request'}
             </button>
           </form>
 
