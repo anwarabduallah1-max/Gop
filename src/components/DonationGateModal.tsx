@@ -1,33 +1,23 @@
-import { useNavigate } from 'react-router-dom'
 import type { Request } from '../lib/types'
 import { MANDATORY_MIN_DONATION } from '../lib/config'
 
 interface Props {
   mandatoryRequest: Request
   onClose: () => void
+  onDonate: () => void
 }
 
-export default function DonationGateModal({ mandatoryRequest, onClose }: Props) {
-  const navigate = useNavigate()
-
-  const goDonate = () => {
-    onClose()
-    navigate(`/?focus=${mandatoryRequest.id}`)
-  }
-
+export default function DonationGateModal({ mandatoryRequest, onClose, onDonate }: Props) {
   return (
     <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="modal-box" style={{ maxWidth: 440 }}>
         <div style={{ padding: '28px 24px', textAlign: 'center' }}>
           <div style={{
             width: 56, height: 56, borderRadius: '50%',
-            background: 'var(--accent-muted)',
-            border: '1px solid rgba(245,200,66,0.3)',
+            background: 'var(--accent-muted)', border: '1px solid rgba(245,200,66,0.3)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             margin: '0 auto 18px', fontSize: 26,
-          }}>
-            ★
-          </div>
+          }}>★</div>
 
           <h2 style={{ margin: '0 0 10px', fontSize: 22, fontWeight: 800, color: 'var(--text-primary)' }}>
             Support Required First
@@ -59,11 +49,8 @@ export default function DonationGateModal({ mandatoryRequest, onClose }: Props) 
               <span style={{
                 fontSize: 10, fontWeight: 800, color: '#0d0f14',
                 background: 'linear-gradient(135deg, #f5c842, #f7d265)',
-                padding: '2px 8px', borderRadius: 999,
-                letterSpacing: '0.07em', textTransform: 'uppercase',
-              }}>
-                ★ Official Campaign
-              </span>
+                padding: '2px 8px', borderRadius: 999, letterSpacing: '0.07em', textTransform: 'uppercase',
+              }}>★ Official Campaign</span>
             </div>
             <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text-primary)', marginBottom: 6 }}>
               {mandatoryRequest.title}
@@ -83,12 +70,8 @@ export default function DonationGateModal({ mandatoryRequest, onClose }: Props) 
               </>
             )}
             {mandatoryRequest.product_url && (
-              <a
-                href={mandatoryRequest.product_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ display: 'inline-block', marginTop: 10, fontSize: 13, color: 'var(--accent)', fontWeight: 600 }}
-              >
+              <a href={mandatoryRequest.product_url} target="_blank" rel="noopener noreferrer"
+                style={{ display: 'inline-block', marginTop: 10, fontSize: 13, color: 'var(--accent)', fontWeight: 600 }}>
                 View post ↗
               </a>
             )}
@@ -98,7 +81,7 @@ export default function DonationGateModal({ mandatoryRequest, onClose }: Props) 
             <button className="btn-secondary" onClick={onClose} style={{ flex: 1, padding: '12px', fontSize: 14 }}>
               Maybe Later
             </button>
-            <button className="btn-primary" onClick={goDonate} style={{ flex: 1, padding: '12px', fontSize: 14 }}>
+            <button className="btn-primary" onClick={onDonate} style={{ flex: 1, padding: '12px', fontSize: 14 }}>
               Donate Now →
             </button>
           </div>

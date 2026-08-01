@@ -6,7 +6,7 @@ interface Props {
 }
 
 export default function RequestCard({ request, onClick }: Props) {
-  const pct = Math.min((request.current_stars / request.final_target) * 100, 100)
+  const pct = request.is_unlimited ? 0 : Math.min((request.current_stars / request.final_target) * 100, 100)
   const isFunded = request.status === 'funded'
   const isPaidOut = request.status === 'paid_out'
   const isPlatform = request.is_platform_post
@@ -28,7 +28,6 @@ export default function RequestCard({ request, onClick }: Props) {
         } : {}),
       }}
     >
-      {/* Platform post top accent bar */}
       {isPlatform && (
         <div style={{
           height: 3,
@@ -38,7 +37,6 @@ export default function RequestCard({ request, onClick }: Props) {
         }} />
       )}
 
-      {/* Image */}
       <div style={{
         width: '100%', paddingTop: '58%', position: 'relative',
         background: 'var(--surface-raised)', overflow: 'hidden',
@@ -62,12 +60,9 @@ export default function RequestCard({ request, onClick }: Props) {
             position: 'absolute', inset: 0,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             color: 'var(--text-muted)', fontSize: 32,
-          }}>
-            ★
-          </div>
+          }}>★</div>
         )}
 
-        {/* Official Campaign badge */}
         {isPlatform && (
           <div style={{
             position: 'absolute', top: 10, left: 10,
@@ -102,7 +97,6 @@ export default function RequestCard({ request, onClick }: Props) {
         )}
       </div>
 
-      {/* Content */}
       <div style={{ padding: '16px 18px 18px', flex: 1, display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div>
           {isPlatform && (
@@ -122,32 +116,23 @@ export default function RequestCard({ request, onClick }: Props) {
             </div>
           )}
           <h3 style={{
-            margin: 0,
-            fontSize: 15, fontWeight: 700,
+            margin: 0, fontSize: 15, fontWeight: 700,
             color: isPlatform ? 'var(--accent)' : 'var(--text-primary)',
             lineHeight: 1.35,
-            display: '-webkit-box',
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical',
-            overflow: 'hidden',
+            display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
           }}>
             {request.title}
           </h3>
           {request.description && (
             <p style={{
-              margin: '5px 0 0', fontSize: 13, color: 'var(--text-muted)',
-              lineHeight: 1.5,
-              display: '-webkit-box',
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: 'vertical',
-              overflow: 'hidden',
+              margin: '5px 0 0', fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.5,
+              display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
             }}>
               {request.description}
             </p>
           )}
         </div>
 
-        {/* Progress / Raised */}
         {request.is_unlimited ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent)' }}>
@@ -157,9 +142,7 @@ export default function RequestCard({ request, onClick }: Props) {
               fontSize: 10, fontWeight: 700, color: 'var(--accent)',
               background: 'var(--accent-muted)', border: '1px solid rgba(245,200,66,0.3)',
               padding: '2px 8px', borderRadius: 999, letterSpacing: '0.05em', textTransform: 'uppercase',
-            }}>
-              Unlimited
-            </span>
+            }}>Unlimited</span>
           </div>
         ) : (
           <div>
@@ -167,41 +150,26 @@ export default function RequestCard({ request, onClick }: Props) {
               <span style={{ fontSize: 13, fontWeight: 700, color: isFunded ? 'var(--success)' : 'var(--accent)' }}>
                 ★ {request.current_stars.toFixed(0)} raised
               </span>
-              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                {pct.toFixed(0)}%
-              </span>
+              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{pct.toFixed(0)}%</span>
             </div>
             <div className="progress-track">
-              <div
-                className={`progress-fill ${isFunded ? 'funded' : ''}`}
-                style={{ width: `${pct}%` }}
-              />
+              <div className={`progress-fill ${isFunded ? 'funded' : ''}`} style={{ width: `${pct}%` }} />
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
-              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                Goal: ★ {request.final_target.toFixed(0)}
-              </span>
-              {!isFunded && (
-                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                  ★ {remaining.toFixed(0)} to go
-                </span>
-              )}
+              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Goal: ★ {request.final_target.toFixed(0)}</span>
+              {!isFunded && <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>★ {remaining.toFixed(0)} to go</span>}
             </div>
           </div>
         )}
 
-        {/* Creator */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             {isPlatform ? (
               <div style={{
                 width: 26, height: 26, borderRadius: '50%',
-                background: 'var(--accent)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: 12, color: '#0d0f14', fontWeight: 900,
-              }}>
-                ★
-              </div>
+              }}>★</div>
             ) : (
               <div className="avatar" style={{ width: 26, height: 26, fontSize: 11 }}>
                 {(request.profile?.username?.[0] ?? 'U').toUpperCase()}
@@ -211,33 +179,15 @@ export default function RequestCard({ request, onClick }: Props) {
               {isPlatform ? 'StarLift Platform' : (request.profile?.username ?? 'Anonymous')}
             </span>
           </div>
-          {isPaidOut ? (
-            <span style={{ fontSize: 12, color: 'var(--success)', fontWeight: 600 }}>
-              Completed
-            </span>
-          ) : (
-            <button
-              className="btn-primary"
-              style={{
-                padding: '6px 14px', fontSize: 12,
-                ...(isPlatform ? {
-                  background: 'var(--accent)',
-                  boxShadow: '0 0 12px rgba(245,200,66,0.3)',
-                } : {}),
-              }}
-            >
+          {!isPaidOut && (
+            <span className="btn-primary" style={{ padding: '6px 14px', fontSize: 12, pointerEvents: 'none' }}>
               {isPlatform ? '★ Support' : 'Donate ★'}
-            </button>
+            </span>
           )}
         </div>
       </div>
 
-      <style>{`
-        @keyframes shimmer {
-          0% { background-position: -200% center; }
-          100% { background-position: 200% center; }
-        }
-      `}</style>
+      <style>{`@keyframes shimmer { 0% { background-position: -200% center; } 100% { background-position: 200% center; } }`}</style>
     </div>
   )
 }

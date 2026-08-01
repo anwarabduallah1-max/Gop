@@ -22,7 +22,7 @@ export interface Request {
   status: 'active' | 'funded' | 'closed' | 'paid_out'
   created_at: string
   updated_at: string
-  profile?: { username: string; avatar_url: string | null }
+  profile?: { username: string; avatar_url: string | null } | null
 }
 
 export interface Transaction {
@@ -42,19 +42,4 @@ export interface PaymentOrder {
   tx_hash: string | null
   created_at: string
   confirmed_at: string | null
-}
-
-export interface PayoutRequest {
-  id: string
-  request_id: string
-  creator_id: string
-  gross_stars: number
-  platform_fee_stars: number
-  net_stars: number
-  net_usdt: number
-  wallet_address: string
-  status: 'processing' | 'completed' | 'failed'
-  tx_hash: string | null
-  created_at: string
-  completed_at: string | null
 }
