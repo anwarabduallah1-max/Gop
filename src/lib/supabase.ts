@@ -5,8 +5,19 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 
 export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey)
 
-export const supabase: SupabaseClient = isSupabaseConfigured
-  ? createClient(supabaseUrl, supabaseAnonKey, {
+let client: SupabaseClient | null = null
+
+if (isSupabaseConfigured) {
+  try {
+    client = createClient(supabaseUrl, supabaseAnonKey, {
       auth: { persistSession: true, autoRefreshToken: true },
     })
-  : (null as unknown as SupabaseClient)
+  } catch (err) {
+    console.error('Failed to initialize Supabase client:', err)
+    client = null
+  }
+}
+
+export const isSupabaseReady = client !== null
+
+export const supabase: SupabaseClient = client ?? (null as unknown as SupabaseClient)

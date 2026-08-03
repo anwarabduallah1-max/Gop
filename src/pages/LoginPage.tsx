@@ -13,10 +13,16 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    setLoading(false)
-    if (error) showToast(error.message, 'error')
-    else { showToast('Welcome back!', 'success'); navigate('/') }
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password })
+      setLoading(false)
+      if (error) showToast(error.message, 'error')
+      else { showToast('Welcome back!', 'success'); navigate('/') }
+    } catch (err) {
+      console.error('Sign in error:', err)
+      setLoading(false)
+      showToast('Sign in failed. Please try again.', 'error')
+    }
   }
 
   return (

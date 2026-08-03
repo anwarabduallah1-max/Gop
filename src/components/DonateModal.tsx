@@ -27,18 +27,24 @@ export default function DonateModal({ request, onClose, onDonated }: Props) {
     if (insufficient) { showToast('Insufficient Stars balance. Top up your wallet first.', 'error'); return }
 
     setLoading(true)
-    const { error } = await supabase.rpc('donate_stars', {
-      p_request_id: request.id,
-      p_amount: amount,
-    })
-    setLoading(false)
+    try {
+      const { error } = await supabase.rpc('donate_stars', {
+        p_request_id: request.id,
+        p_amount: amount,
+      })
+      setLoading(false)
 
-    if (error) {
-      showToast(error.message, 'error')
-    } else {
-      showToast(`Donated ★ ${amount} to ${request.title}!`, 'success')
-      onDonated()
-      onClose()
+      if (error) {
+        showToast(error.message, 'error')
+      } else {
+        showToast(`Donated ★ ${amount} to ${request.title}!`, 'success')
+        onDonated()
+        onClose()
+      }
+    } catch (err) {
+      console.error('Donate error:', err)
+      setLoading(false)
+      showToast('Donation failed. Please try again.', 'error')
     }
   }
 

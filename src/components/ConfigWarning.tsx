@@ -1,7 +1,7 @@
-import { isSupabaseConfigured } from '../lib/supabase'
+import { isSupabaseReady } from '../lib/supabase'
 
 export default function ConfigWarning() {
-  if (isSupabaseConfigured) return null
+  if (isSupabaseReady) return null
 
   return (
     <div style={{

@@ -15,15 +15,20 @@ export default function SignupPage() {
     e.preventDefault()
     if (password.length < 6) { showToast('Password must be at least 6 characters', 'error'); return }
     setLoading(true)
-    const { data, error } = await supabase.auth.signUp({
-      email, password,
-      options: { data: { username } },
-    })
-    if (error) { setLoading(false); showToast(error.message, 'error'); return }
-    if (data.user) {
-      await supabase.from('profiles').upsert({ id: data.user.id, username })
-      showToast('Account created! Welcome to StarLift.', 'success')
-      navigate('/')
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email, password,
+        options: { data: { username } },
+      })
+      if (error) { setLoading(false); showToast(error.message, 'error'); return }
+      if (data.user) {
+        try { await supabase.from('profiles').upsert({ id: data.user.id, username }) } catch (e) { console.error('Profile insert error:', e) }
+        showToast('Account created! Welcome to StarLift.', 'success')
+        navigate('/')
+      }
+    } catch (err) {
+      console.error('Signup error:', err)
+      showToast('Sign up failed. Please try again.', 'error')
     }
     setLoading(false)
   }

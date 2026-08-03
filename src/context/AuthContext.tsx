@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
-import { supabase, isSupabaseConfigured } from '../lib/supabase'
+import { supabase, isSupabaseReady } from '../lib/supabase'
 import type { Profile } from '../lib/types'
 
 interface AuthContextValue {
@@ -28,12 +28,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   const fetchProfile = async (userId: string) => {
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .maybeSingle()
-    if (data) setProfile(data as Profile)
+    try {
+      const { data } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle()
+      if (data) setProfile(data as Profile)
+    } catch (err) {
+      console.error('Profile fetch error:', err)
+    }
   }
 
   const refreshProfile = async () => {
@@ -43,10 +47,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
-    if (!isSupabaseConfigured) { setLoading(false); return }
+    if (!isSupabaseReady) { setLoading(false); return }
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
       setUser(session?.user ?? null)
+      setLoading(false)
+    }).catch((err) => {
+      console.error('Auth session error:', err)
       setLoading(false)
     })
 
@@ -68,18 +75,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!user) return
     let cancelled = false
     ;(async () => {
-      const { data } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .maybeSingle()
-      if (!cancelled && data) setProfile(data as Profile)
+      try {
+        const { data } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .maybeSingle()
+        if (!cancelled && data) setProfile(data as Profile)
+      } catch (err) {
+        console.error('Profile fetch error:', err)
+      }
     })()
     return () => { cancelled = true }
   }, [user])
 
   const signOut = async () => {
-    await supabase.auth.signOut()
+    try { await supabase.auth.signOut() } catch (err) { console.error('Sign out error:', err) }
     setProfile(null)
   }
 

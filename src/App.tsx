@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import { ToastProvider } from './context/ToastContext'
-import { isSupabaseConfigured } from './lib/supabase'
+import { isSupabaseReady } from './lib/supabase'
 import Navbar from './components/Navbar'
 import ConfigWarning from './components/ConfigWarning'
 import ExplorePage from './pages/ExplorePage'
@@ -12,7 +12,7 @@ import WalletPage from './pages/WalletPage'
 import MyRequestsPage from './pages/MyRequestsPage'
 
 export default function App() {
-  if (!isSupabaseConfigured) {
+  if (!isSupabaseReady) {
     return (
       <>
         <ConfigWarning />

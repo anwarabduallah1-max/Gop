@@ -19,22 +19,27 @@ export default function ExplorePage() {
   const [search, setSearch] = useState('')
 
   const fetchRequests = async () => {
-    let query = supabase.from('requests').select('*').order('created_at', { ascending: false })
-    if (filter !== 'all') query = query.eq('status', filter)
-    const { data, error } = await query
-    if (error || !data) { setLoading(false); return }
+    try {
+      let query = supabase.from('requests').select('*').order('created_at', { ascending: false })
+      if (filter !== 'all') query = query.eq('status', filter)
+      const { data, error } = await query
+      if (error || !data) { setLoading(false); return }
 
-    const userIds = [...new Set(data.map((r: Request) => r.user_id))]
-    const { data: profiles } = await supabase.from('profiles').select('id, username, avatar_url').in('id', userIds)
-    const profileMap = Object.fromEntries((profiles ?? []).map(p => [p.id, p]))
-    const mapped = data.map((r: Request) => ({ ...r, profile: profileMap[r.user_id] ?? null })) as Request[]
-    mapped.sort((a, b) => {
-      if (a.is_platform_post && !b.is_platform_post) return -1
-      if (!a.is_platform_post && b.is_platform_post) return 1
-      return 0
-    })
-    setRequests(mapped)
-    setLoading(false)
+      const userIds = [...new Set(data.map((r: Request) => r.user_id))]
+      const { data: profiles } = await supabase.from('profiles').select('id, username, avatar_url').in('id', userIds)
+      const profileMap = Object.fromEntries((profiles ?? []).map(p => [p.id, p]))
+      const mapped = data.map((r: Request) => ({ ...r, profile: profileMap[r.user_id] ?? null })) as Request[]
+      mapped.sort((a, b) => {
+        if (a.is_platform_post && !b.is_platform_post) return -1
+        if (!a.is_platform_post && b.is_platform_post) return 1
+        return 0
+      })
+      setRequests(mapped)
+    } catch (err) {
+      console.error('Fetch requests error:', err)
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => { setLoading(true); fetchRequests() }, [filter])

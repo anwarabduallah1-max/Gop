@@ -17,8 +17,12 @@ export default function WalletPage() {
     if (!user) return
     let cancelled = false
     ;(async () => {
-      const { data } = await supabase.from('payment_orders').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(10)
-      if (!cancelled) setOrders((data ?? []) as PaymentOrder[])
+      try {
+        const { data } = await supabase.from('payment_orders').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(10)
+        if (!cancelled) setOrders((data ?? []) as PaymentOrder[])
+      } catch (err) {
+        console.error('Fetch orders error:', err)
+      }
     })()
     return () => { cancelled = true }
   }, [user])
@@ -26,13 +30,19 @@ export default function WalletPage() {
   const handleBuy = async () => {
     if (!user || amount <= 0) return
     setLoading(true)
-    const { data, error } = await supabase.rpc('buy_stars', { amount })
-    setLoading(false)
-    if (error) { showToast(error.message, 'error'); return }
-    if (data) {
-      showToast(`Order created for ★ ${amount}. Confirm your payment to receive Stars.`, 'info')
-      const { data: updated } = await supabase.from('payment_orders').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(10)
-      if (updated) setOrders(updated as PaymentOrder[])
+    try {
+      const { data, error } = await supabase.rpc('buy_stars', { amount })
+      setLoading(false)
+      if (error) { showToast(error.message, 'error'); return }
+      if (data) {
+        showToast(`Order created for ★ ${amount}. Confirm your payment to receive Stars.`, 'info')
+        const { data: updated } = await supabase.from('payment_orders').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(10)
+        if (updated) setOrders(updated as PaymentOrder[])
+      }
+    } catch (err) {
+      console.error('Buy stars error:', err)
+      setLoading(false)
+      showToast('Failed to create order. Please try again.', 'error')
     }
   }
 

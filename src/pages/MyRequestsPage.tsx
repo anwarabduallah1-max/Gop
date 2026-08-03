@@ -17,8 +17,13 @@ export default function MyRequestsPage() {
     if (!user) { navigate('/login'); return }
     let cancelled = false
     ;(async () => {
-      const { data } = await supabase.from('requests').select('*').eq('user_id', user.id).order('created_at', { ascending: false })
-      if (!cancelled) { setRequests((data ?? []) as Request[]); setLoading(false) }
+      try {
+        const { data } = await supabase.from('requests').select('*').eq('user_id', user.id).order('created_at', { ascending: false })
+        if (!cancelled) { setRequests((data ?? []) as Request[]); setLoading(false) }
+      } catch (err) {
+        console.error('Fetch my requests error:', err)
+        if (!cancelled) setLoading(false)
+      }
     })()
     return () => { cancelled = true }
   }, [user])

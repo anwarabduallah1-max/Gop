@@ -40,14 +40,19 @@ export default function CreateRequestPage() {
     if (!user) return
     let cancelled = false
     ;(async () => {
-      const [{ data: donations }, { data: req }] = await Promise.all([
-        supabase.from('transactions').select('stars_amount').eq('donor_id', user.id).eq('request_id', MANDATORY_DONATION_POST_ID),
-        supabase.from('requests').select('*').eq('id', MANDATORY_DONATION_POST_ID).maybeSingle(),
-      ])
-      if (cancelled) return
-      const sum = (donations ?? []).reduce((s, t: { stars_amount: number }) => s + (t.stars_amount ?? 0), 0)
-      setFeaturedDonationSum(sum)
-      setFeaturedReq(req as Request | null)
+      try {
+        const [{ data: donations }, { data: req }] = await Promise.all([
+          supabase.from('transactions').select('stars_amount').eq('donor_id', user.id).eq('request_id', MANDATORY_DONATION_POST_ID),
+          supabase.from('requests').select('*').eq('id', MANDATORY_DONATION_POST_ID).maybeSingle(),
+        ])
+        if (cancelled) return
+        const sum = (donations ?? []).reduce((s, t: { stars_amount: number }) => s + (t.stars_amount ?? 0), 0)
+        setFeaturedDonationSum(sum)
+        setFeaturedReq(req as Request | null)
+      } catch (err) {
+        console.error('Featured campaign fetch error:', err)
+        if (!cancelled) setFeaturedDonationSum(0)
+      }
     })()
     return () => { cancelled = true }
   }, [user])
@@ -55,13 +60,17 @@ export default function CreateRequestPage() {
   // Re-check donation sum after returning from a donation
   const refreshDonationSum = async () => {
     if (!user) return
-    const { data: donations } = await supabase
-      .from('transactions')
-      .select('stars_amount')
-      .eq('donor_id', user.id)
-      .eq('request_id', MANDATORY_DONATION_POST_ID)
-    const sum = (donations ?? []).reduce((s, t: { stars_amount: number }) => s + (t.stars_amount ?? 0), 0)
-    setFeaturedDonationSum(sum)
+    try {
+      const { data: donations } = await supabase
+        .from('transactions')
+        .select('stars_amount')
+        .eq('donor_id', user.id)
+        .eq('request_id', MANDATORY_DONATION_POST_ID)
+      const sum = (donations ?? []).reduce((s, t: { stars_amount: number }) => s + (t.stars_amount ?? 0), 0)
+      setFeaturedDonationSum(sum)
+    } catch (err) {
+      console.error('Refresh donation sum error:', err)
+    }
   }
 
   const blockedFromPosting = featuredDonationSum !== null && featuredDonationSum < MANDATORY_MIN_DONATION
@@ -102,40 +111,46 @@ export default function CreateRequestPage() {
     if (base <= 0) { showToast('Please enter a valid target amount', 'error'); return }
 
     setLoading(true)
+    try {
+      const { data: donations } = await supabase
+        .from('transactions')
+        .select('stars_amount')
+        .eq('donor_id', user.id)
+        .eq('request_id', MANDATORY_DONATION_POST_ID)
+      const sum = (donations ?? []).reduce((s, t: { stars_amount: number }) => s + (t.stars_amount ?? 0), 0)
 
-    const { data: donations } = await supabase
-      .from('transactions')
-      .select('stars_amount')
-      .eq('donor_id', user.id)
-      .eq('request_id', MANDATORY_DONATION_POST_ID)
-    const sum = (donations ?? []).reduce((s, t: { stars_amount: number }) => s + (t.stars_amount ?? 0), 0)
+      if (sum < MANDATORY_MIN_DONATION) {
+        setLoading(false)
+        setGateOpen(true)
+        return
+      }
 
-    if (sum < MANDATORY_MIN_DONATION) {
+      let finalImageUrl = imageUrl.trim()
+      if (imageMode === 'upload' && uploadedFile) {
+        setUploading(true)
+        const fileExt = uploadedFile.name.split('.').pop() || 'jpg'
+        const filePath = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${fileExt}`
+        const { error: upErr } = await supabase.storage.from('request-images').upload(filePath, uploadedFile, { cacheControl: '3600', upsert: false })
+        setUploading(false)
+        if (upErr) { showToast(upErr.message, 'error'); setLoading(false); return }
+        const { data: pub } = supabase.storage.from('request-images').getPublicUrl(filePath)
+        finalImageUrl = pub.publicUrl
+      }
+
+      const { error } = await supabase.from('requests').insert({
+        title: title.trim(), description: description.trim(), image_url: finalImageUrl,
+        product_url: productUrl.trim(), base_target: base, final_target: finalTarget,
+      })
       setLoading(false)
-      setGateOpen(true)
-      return
-    }
 
-    let finalImageUrl = imageUrl.trim()
-    if (imageMode === 'upload' && uploadedFile) {
-      setUploading(true)
-      const fileExt = uploadedFile.name.split('.').pop() || 'jpg'
-      const filePath = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${fileExt}`
-      const { error: upErr } = await supabase.storage.from('request-images').upload(filePath, uploadedFile, { cacheControl: '3600', upsert: false })
+      if (error) showToast(error.message, 'error')
+      else { showToast('Request created successfully!', 'success'); navigate('/my-requests') }
+    } catch (err) {
+      console.error('Submit error:', err)
+      showToast('An unexpected error occurred. Please try again.', 'error')
+      setLoading(false)
       setUploading(false)
-      if (upErr) { showToast(upErr.message, 'error'); setLoading(false); return }
-      const { data: pub } = supabase.storage.from('request-images').getPublicUrl(filePath)
-      finalImageUrl = pub.publicUrl
     }
-
-    const { error } = await supabase.from('requests').insert({
-      title: title.trim(), description: description.trim(), image_url: finalImageUrl,
-      product_url: productUrl.trim(), base_target: base, final_target: finalTarget,
-    })
-    setLoading(false)
-
-    if (error) showToast(error.message, 'error')
-    else { showToast('Request created successfully!', 'success'); navigate('/my-requests') }
   }
 
   return (
