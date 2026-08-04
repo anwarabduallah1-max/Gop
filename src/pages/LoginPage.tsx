@@ -16,8 +16,14 @@ export default function LoginPage() {
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
       setLoading(false)
-      if (error) showToast(error.message, 'error')
-      else { showToast('Welcome back!', 'success'); navigate('/') }
+      if (error) {
+        const msg = error.message.toLowerCase()
+        if (msg.includes('email not confirmed') || msg.includes('not verified')) {
+          showToast('Your email is not verified yet. Please check your inbox.', 'error')
+        } else {
+          showToast(error.message, 'error')
+        }
+      } else { showToast('Welcome back!', 'success'); navigate('/') }
     } catch (err) {
       console.error('Sign in error:', err)
       setLoading(false)

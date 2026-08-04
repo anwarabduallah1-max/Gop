@@ -2,10 +2,12 @@ import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useToast } from '../context/ToastContext'
+import { useAuth } from '../context/AuthContext'
 
 export default function SignupPage() {
   const { showToast } = useToast()
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -21,10 +23,14 @@ export default function SignupPage() {
         options: { data: { username } },
       })
       if (error) { setLoading(false); showToast(error.message, 'error'); return }
-      if (data.user) {
-        try { await supabase.from('profiles').upsert({ id: data.user.id, username }) } catch (e) { console.error('Profile insert error:', e) }
+      if (data.session) {
+        try { await supabase.from('profiles').upsert({ id: data.user!.id, username }) } catch (e) { console.error('Profile insert error:', e) }
         showToast('Account created! Welcome to StarLift.', 'success')
         navigate('/')
+      } else {
+        setLoading(false)
+        showToast('Account created successfully! Please check your email to verify your account before logging in.', 'success')
+        navigate('/login')
       }
     } catch (err) {
       console.error('Signup error:', err)

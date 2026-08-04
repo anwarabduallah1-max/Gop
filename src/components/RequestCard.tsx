@@ -1,4 +1,5 @@
 import type { Request } from '../lib/types'
+import { useToast } from '../context/ToastContext'
 
 interface Props {
   request: Request
@@ -6,11 +7,24 @@ interface Props {
 }
 
 export default function RequestCard({ request, onClick }: Props) {
+  const { showToast } = useToast()
   const pct = request.is_unlimited ? 0 : Math.min((request.current_stars / request.final_target) * 100, 100)
   const isFunded = request.status === 'funded'
   const isPaidOut = request.status === 'paid_out'
   const isPlatform = request.is_platform_post
   const remaining = Math.max(request.final_target - request.current_stars, 0)
+
+  const handleCopyLink = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    const url = `${window.location.origin}/?post=${request.id}`
+    try {
+      await navigator.clipboard.writeText(url)
+      showToast('Post link copied to clipboard!', 'success')
+    } catch (err) {
+      console.error('Clipboard error:', err)
+      showToast('Could not copy link. Please try again.', 'error')
+    }
+  }
 
   return (
     <div
@@ -179,11 +193,36 @@ export default function RequestCard({ request, onClick }: Props) {
               {isPlatform ? 'StarLift Platform' : (request.profile?.username ?? 'Anonymous')}
             </span>
           </div>
-          {!isPaidOut && (
-            <span className="btn-primary" style={{ padding: '6px 14px', fontSize: 12, pointerEvents: 'none' }}>
-              {isPlatform ? '★ Support' : 'Donate ★'}
-            </span>
-          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button
+              onClick={handleCopyLink}
+              aria-label="Copy post link"
+              title="Copy link"
+              style={{
+                background: 'transparent',
+                border: '1px solid rgba(255,255,255,0.12)',
+                borderRadius: 8,
+                padding: '6px 10px',
+                cursor: 'pointer',
+                color: 'var(--text-muted)',
+                fontSize: 13,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                transition: 'all 0.2s ease',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(245,200,66,0.4)'; e.currentTarget.style.color = 'var(--accent)' }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; e.currentTarget.style.color = 'var(--text-muted)' }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+              </svg>
+            </button>
+            {!isPaidOut && (
+              <span className="btn-primary" style={{ padding: '6px 14px', fontSize: 12, pointerEvents: 'none' }}>
+                {isPlatform ? '★ Support' : 'Donate ★'}
+              </span>
+            )}
+          </div>
         </div>
       </div>
 
