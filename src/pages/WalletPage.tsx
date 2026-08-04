@@ -7,7 +7,7 @@ import type { PaymentOrder } from '../lib/types'
 const PRESET_AMOUNTS = [10, 25, 50, 100]
 
 export default function WalletPage() {
-  const { user, profile } = useAuth()
+  const { user, profile, refreshProfile } = useAuth()
   const { showToast } = useToast()
   const [amount, setAmount] = useState(10)
   const [loading, setLoading] = useState(false)
@@ -31,18 +31,23 @@ export default function WalletPage() {
     if (!user || amount <= 0) return
     setLoading(true)
     try {
-      const { data, error } = await supabase.rpc('buy_stars', { amount })
-      setLoading(false)
-      if (error) { showToast(error.message, 'error'); return }
-      if (data) {
-        showToast(`Order created for ★ ${amount}. Confirm your payment to receive Stars.`, 'info')
+      const { data, error } = await supabase.rpc('buy_stars', { amount: Math.floor(amount) })
+      if (error) {
+        setLoading(false)
+        showToast(error.message, 'error')
+        return
+      }
+      if (data !== null && data !== undefined) {
+        showToast(`★ ${Math.floor(amount)} Stars added to your balance!`, 'success')
+        await refreshProfile()
         const { data: updated } = await supabase.from('payment_orders').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(10)
         if (updated) setOrders(updated as PaymentOrder[])
       }
+      setLoading(false)
     } catch (err) {
       console.error('Buy stars error:', err)
       setLoading(false)
-      showToast('Failed to create order. Please try again.', 'error')
+      showToast('Failed to purchase Stars. Please try again.', 'error')
     }
   }
 
