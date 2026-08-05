@@ -13,7 +13,7 @@ const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
 type ImageMode = 'url' | 'upload'
 
 export default function CreateRequestPage() {
-  const { user } = useAuth()
+  const { user, profile, refreshProfile } = useAuth()
   const { showToast } = useToast()
   const navigate = useNavigate()
 
@@ -35,6 +35,8 @@ export default function CreateRequestPage() {
   const [featuredDonationSum, setFeaturedDonationSum] = useState<number | null>(null)
   const [gateOpen, setGateOpen] = useState(false)
   const [donateOpen, setDonateOpen] = useState(false)
+  const [payingFee, setPayingFee] = useState(false)
+  const [insufficientOpen, setInsufficientOpen] = useState(false)
 
   useEffect(() => {
     if (!user) return
@@ -88,6 +90,32 @@ export default function CreateRequestPage() {
       setDonateOpen(true)
     } else {
       navigate('/')
+    }
+  }
+
+  // Pay the platform fee directly via RPC — deducts 5 stars and records it
+  const handlePayPlatformFee = async () => {
+    if (!user) return
+    const balance = profile?.stars_balance ?? 0
+    if (balance < MANDATORY_MIN_DONATION) {
+      setInsufficientOpen(true)
+      return
+    }
+    setPayingFee(true)
+    try {
+      const { error } = await supabase.rpc('pay_platform_fee')
+      if (error) {
+        showToast(error.message, 'error')
+      } else {
+        showToast('Platform fee paid! You can now publish your campaign.', 'success')
+        await refreshProfile()
+        await refreshDonationSum()
+      }
+    } catch (err) {
+      console.error('Pay fee error:', err)
+      showToast('Failed to pay platform fee. Please try again.', 'error')
+    } finally {
+      setPayingFee(false)
     }
   }
 
@@ -238,10 +266,14 @@ export default function CreateRequestPage() {
                   minimum <span style={{ fontWeight: 700, color: 'var(--accent)' }}>★ {MANDATORY_MIN_DONATION}</span> required.
                   {remainingToDonate > 0 && <> Donate <span style={{ fontWeight: 700, color: 'var(--accent)' }}>★ {remainingToDonate}</span> more to unlock posting.</>}
                 </div>
-                {/* FIX: This button is now fully functional — opens the DonateModal directly */}
-                <button type="button" className="btn-primary" onClick={handleSupportFeatured} style={{ alignSelf: 'flex-start', padding: '10px 20px', fontSize: 14 }}>
-                  Support Featured Campaign →
-                </button>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                  <button type="button" className="btn-primary" onClick={handlePayPlatformFee} disabled={payingFee} style={{ padding: '10px 20px', fontSize: 14 }}>
+                    {payingFee ? 'Processing...' : 'Pay Platform Fee (★ 5)'}
+                  </button>
+                  <button type="button" className="btn-secondary" onClick={handleSupportFeatured} style={{ padding: '10px 20px', fontSize: 14 }}>
+                    Donate Custom →
+                  </button>
+                </div>
               </div>
             )}
 
@@ -293,6 +325,39 @@ export default function CreateRequestPage() {
           onClose={() => { setDonateOpen(false); refreshDonationSum() }}
           onDonated={() => { refreshDonationSum() }}
         />
+      )}
+
+      {insufficientOpen && (
+        <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && setInsufficientOpen(false)}>
+          <div className="modal-box" style={{ maxWidth: 420 }}>
+            <div style={{ padding: '28px 24px', textAlign: 'center' }}>
+              <div style={{
+                width: 56, height: 56, borderRadius: '50%',
+                background: 'rgba(240,96,96,0.1)', border: '1px solid rgba(240,96,96,0.3)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                margin: '0 auto 18px', fontSize: 26, color: 'var(--error)',
+              }}>!</div>
+              <h2 style={{ margin: '0 0 10px', fontSize: 20, fontWeight: 800, color: 'var(--text-primary)' }}>
+                Insufficient Stars
+              </h2>
+              <p style={{ margin: '0 0 8px', fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                You need at least <span style={{ color: 'var(--accent)', fontWeight: 700 }}>★ {MANDATORY_MIN_DONATION}</span> to pay the platform fee,
+                but your balance is <span style={{ color: 'var(--error)', fontWeight: 700 }}>★ {profile?.stars_balance?.toFixed(0) ?? 0}</span>.
+              </p>
+              <p style={{ margin: '0 0 22px', fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6 }}>
+                Add Stars to your wallet, then come back to publish your campaign.
+              </p>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button className="btn-secondary" onClick={() => setInsufficientOpen(false)} style={{ flex: 1, padding: '12px', fontSize: 14 }}>
+                  Cancel
+                </button>
+                <button className="btn-primary" onClick={() => { setInsufficientOpen(false); navigate('/wallet') }} style={{ flex: 1, padding: '12px', fontSize: 14 }}>
+                  Go to Wallet →
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

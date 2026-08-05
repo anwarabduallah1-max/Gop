@@ -13,7 +13,7 @@ interface Props {
 const PRESET_AMOUNTS = [5, 10, 25, 50]
 
 export default function DonateModal({ request, onClose, onDonated }: Props) {
-  const { user, profile } = useAuth()
+  const { user, profile, refreshProfile } = useAuth()
   const { showToast } = useToast()
   const [amount, setAmount] = useState(5)
   const [loading, setLoading] = useState(false)
@@ -28,7 +28,7 @@ export default function DonateModal({ request, onClose, onDonated }: Props) {
 
     setLoading(true)
     try {
-      const { error } = await supabase.rpc('donate_stars', {
+      const { data, error } = await supabase.rpc('donate_stars', {
         p_request_id: request.id,
         p_amount: amount,
       })
@@ -38,6 +38,7 @@ export default function DonateModal({ request, onClose, onDonated }: Props) {
         showToast(error.message, 'error')
       } else {
         showToast(`Donated ★ ${amount} to ${request.title}!`, 'success')
+        await refreshProfile()
         onDonated()
         onClose()
       }
