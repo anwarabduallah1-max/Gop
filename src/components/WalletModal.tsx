@@ -44,8 +44,11 @@ export default function WalletModal({ onClose }: Props) {
   const [plisioStatus, setPlisioStatus] = useState<string | null>(null)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  const getAmount = () => {
-    if (custom !== '') return Math.max(Number(custom), 1)
+  const getAmount = (): number => {
+    if (custom.trim() !== '') {
+      const n = Number(custom)
+      return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0
+    }
     return selected ?? 0
   }
 
@@ -107,7 +110,10 @@ export default function WalletModal({ onClose }: Props) {
 
   const handleProceedToPay = async () => {
     const amt = getAmount()
-    if (amt < 1) return
+    if (!Number.isFinite(amt) || amt < 1) {
+      setError('Please enter a valid amount')
+      return
+    }
     setError(null)
     setCreating(true)
 
