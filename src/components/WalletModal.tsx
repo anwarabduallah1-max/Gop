@@ -485,4 +485,4 @@ export default function WalletModal({ onClose }: Props) {
           {step === 'done' && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 18, padding: '30px 0 10px' }}>
               <div style={{
-     
+    
