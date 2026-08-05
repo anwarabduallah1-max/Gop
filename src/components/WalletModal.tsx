@@ -485,45 +485,4 @@ export default function WalletModal({ onClose }: Props) {
           {step === 'done' && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 18, padding: '30px 0 10px' }}>
               <div style={{
-                width: 64, height: 64, borderRadius: '50%',
-                background: 'rgba(62,207,142,0.12)',
-                border: '2px solid var(--success)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 32, color: 'var(--success)',
-              }}>
-                ✓
-              </div>
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 4 }}>
-                  ★ {getAmount()} Stars added
-                </div>
-                <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-                  Your new balance: ★ {profile?.stars_balance?.toFixed(0) ?? 0}
-                </div>
-              </div>
-              {txHash && (
-                <div style={{
-                  padding: '8px 12px',
-                  background: 'var(--surface-raised)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 8,
-                  fontSize: 11, color: 'var(--text-muted)',
-                  fontFamily: 'ui-monospace, monospace',
-                  wordBreak: 'break-all',
-                  maxWidth: '100%',
-                }}>
-                  Tx: {txHash.slice(0, 42)}…
-                </div>
-              )}
-              <button className="btn-primary" onClick={handleClose} style={{ width: '100%', padding: '13px', fontSize: 15 }}>
-                Done
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      </div>
-    )
-  }
+     
