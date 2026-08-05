@@ -42,4 +42,9 @@ export interface PaymentOrder {
   tx_hash: string | null
   created_at: string
   confirmed_at: string | null
+  plisio_invoice_id: string | null
+  plisio_invoice_url: string | null
+  plisio_invoice_qr: string | null
+  plisio_order_number: string | null
+  plisio_currency: string | null
 }
