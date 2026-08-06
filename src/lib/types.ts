@@ -48,3 +48,16 @@ export interface PaymentOrder {
   plisio_order_number: string | null
   plisio_currency: string | null
 }
+
+export interface Withdrawal {
+  id: string
+  user_id: string
+  stars_amount: number
+  platform_fee_stars: number
+  usdt_amount: number
+  wallet_address: string
+  status: 'processing' | 'completed' | 'failed'
+  plisio_txn_id: string | null
+  created_at: string
+  completed_at: string | null
+}
