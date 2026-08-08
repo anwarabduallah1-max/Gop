@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import { supabase } from '../lib/supabase'
+import { safeFetchJson } from '../lib/safeFetch'
 
 const PACKAGES = [
   { stars: 10,  price: 10,  label: 'Starter' },
@@ -137,7 +138,7 @@ export default function WalletModal({ onClose }: Props) {
       setOrderId(order.id)
 
       const fnUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/plisio-create-invoice`
-      const res = await fetch(fnUrl, {
+      const { ok, status, data: json } = await safeFetchJson(fnUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -146,19 +147,18 @@ export default function WalletModal({ onClose }: Props) {
         },
         body: JSON.stringify({ amount: amt, order_id: order.id, currency }),
       })
-      const json = await res.json()
 
-      if (!res.ok || !json.success) {
-        throw new Error(json.error ?? `Failed to create Plisio invoice (${res.status})`)
+      if (!ok || !json?.success) {
+        throw new Error((json?.error as string) ?? `Failed to create Plisio invoice (${status})`)
       }
 
-      setInvoiceUrl(json.invoice_url)
+      setInvoiceUrl(json.invoice_url as string)
       setInvoiceCurrency(currency)
-      setQrCode(json.qr_code)
+      setQrCode(json.qr_code as string)
       setStep('pay')
 
       if (json.invoice_url) {
-        window.open(json.invoice_url, '_blank', 'noopener,noreferrer')
+        window.open(json.invoice_url as string, '_blank', 'noopener,noreferrer')
       }
     } catch (e) {
       setError((e as Error).message)
