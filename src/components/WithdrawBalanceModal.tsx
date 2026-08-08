@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useToast } from '../context/ToastContext'
-import { supabase } from '../lib/supabase'
+import { supabase, supabaseApiKey, supabaseApiUrl } from '../lib/supabase'
 
 type Step = 'form' | 'processing' | 'done'
 
@@ -60,14 +60,14 @@ export default function WithdrawBalanceModal({ balance, onClose, onWithdrawn }: 
     }
 
     // 2. Call the plisio-withdraw edge function to execute the real Plisio API call.
-    const fnUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/plisio-withdraw`
+    const fnUrl = `${supabaseApiUrl}/functions/v1/plisio-withdraw`
     try {
       const res = await fetch(fnUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${supabaseApiKey}`,
+          apikey: supabaseApiKey,
         },
         body: JSON.stringify({ withdrawal_id: withdrawalId }),
       })

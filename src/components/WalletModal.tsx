@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
-import { supabase } from '../lib/supabase'
+import { supabase, supabaseApiKey, supabaseApiUrl } from '../lib/supabase'
 import { safeFetchJson } from '../lib/safeFetch'
 
 const PACKAGES = [
@@ -54,14 +54,14 @@ export default function WalletModal({ onClose }: Props) {
   }
 
   const callStatusCheck = useCallback(async (id: string): Promise<boolean> => {
-    const fnUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/plisio-check-invoice-status`
+    const fnUrl = `${supabaseApiUrl}/functions/v1/plisio-check-invoice-status`
     try {
       const res = await fetch(fnUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${supabaseApiKey}`,
+          apikey: supabaseApiKey,
         },
         body: JSON.stringify({ order_id: id }),
       })
@@ -137,13 +137,13 @@ export default function WalletModal({ onClose }: Props) {
 
       setOrderId(order.id)
 
-      const fnUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/plisio-create-invoice`
+      const fnUrl = `${supabaseApiUrl}/functions/v1/plisio-create-invoice`
       const { ok, status, data: json } = await safeFetchJson(fnUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${supabaseApiKey}`,
+          apikey: supabaseApiKey,
         },
         body: JSON.stringify({ amount: amt, order_id: order.id, currency }),
       })

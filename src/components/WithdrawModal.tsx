@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useToast } from '../context/ToastContext'
-import { supabase } from '../lib/supabase'
+import { supabase, supabaseApiKey, supabaseApiUrl } from '../lib/supabase'
 import type { Request } from '../lib/types'
 
 type Step = 'form' | 'processing' | 'done'
@@ -52,14 +52,14 @@ export default function WithdrawModal({ request, onClose, onWithdrawn }: Props) 
     setPayoutId(newPayoutId)
 
     // 2. Call the plisio-payout edge function to execute the real Plisio withdrawal API call.
-    const fnUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/plisio-payout`
+    const fnUrl = `${supabaseApiUrl}/functions/v1/plisio-payout`
     try {
       const res = await fetch(fnUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${supabaseApiKey}`,
+          apikey: supabaseApiKey,
         },
         body: JSON.stringify({ payout_id: newPayoutId }),
       })
