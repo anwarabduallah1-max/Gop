@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import WalletModal from './WalletModal'
+import { getAvatarSignedUrl } from './AvatarUpload'
 
 export default function Header() {
   const { user, profile, signOut } = useAuth()
@@ -10,6 +11,13 @@ export default function Header() {
   const navigate = useNavigate()
   const [walletOpen, setWalletOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+
+  useEffect(() => {
+    let active = true
+    getAvatarSignedUrl(profile?.avatar_url).then(url => { if (active) setAvatarUrl(url) })
+    return () => { active = false }
+  }, [profile?.avatar_url])
 
   const handleSignOut = async () => {
     await signOut()
@@ -66,7 +74,7 @@ export default function Header() {
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                     }}
                   >
-                    {(profile?.username?.[0] ?? user.email?.[0] ?? 'U').toUpperCase()}
+                    {avatarUrl ? <img src={avatarUrl} alt="Your profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (profile?.username?.[0] ?? user.email?.[0] ?? 'U').toUpperCase()}
                   </button>
                   {menuOpen && (
                     <div
@@ -88,6 +96,15 @@ export default function Header() {
                         </div>
                         <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{user.email}</div>
                       </div>
+                      <Link
+                        to="/profile"
+                        onClick={() => setMenuOpen(false)}
+                        style={{ display: 'block', padding: '10px 16px', fontSize: 14, color: 'var(--text-secondary)', textDecoration: 'none' }}
+                        onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-raised)')}
+                        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                      >
+                        Profile settings
+                      </Link>
                       <Link
                         to="/my-requests"
                         onClick={() => setMenuOpen(false)}

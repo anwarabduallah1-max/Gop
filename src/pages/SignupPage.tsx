@@ -20,7 +20,7 @@ export default function SignupPage() {
     try {
       const { data, error } = await supabase.auth.signUp({
         email, password,
-        options: { data: { username } },
+        options: { data: { username, referral_code: new URLSearchParams(window.location.search).get('ref') || localStorage.getItem('starlift_referral_code') || '' } },
       })
       if (error) { setLoading(false); showToast(error.message, 'error'); return }
       if (data.session) {

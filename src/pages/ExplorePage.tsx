@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import type { Request } from '../lib/types'
 import RequestCard from '../components/RequestCard'
 import DonateModal from '../components/DonateModal'
+import Leaderboard from '../components/Leaderboard'
 
 type Filter = 'all' | 'active' | 'funded'
 
@@ -45,6 +46,8 @@ export default function ExplorePage() {
   useEffect(() => { setLoading(true); fetchRequests() }, [filter])
 
   useEffect(() => {
+    const referralCode = searchParams.get('ref')
+    if (referralCode) localStorage.setItem('starlift_referral_code', referralCode.toUpperCase())
     const focusId = searchParams.get('focus')
     if (!focusId || requests.length === 0) return
     const target = requests.find(r => r.id === focusId)
@@ -149,6 +152,7 @@ export default function ExplorePage() {
       </div>
 
       {selected && <DonateModal request={selected} onClose={() => setSelected(null)} onDonated={fetchRequests} />}
+      <Leaderboard />
     </div>
   )
 }

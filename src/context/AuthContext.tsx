@@ -8,6 +8,8 @@ interface AuthContextValue {
   profile: Profile | null
   session: Session | null
   loading: boolean
+  profileLoading: boolean
+  profileError: string | null
   refreshProfile: () => Promise<void>
   signOut: () => Promise<void>
 }
@@ -17,6 +19,8 @@ const AuthContext = createContext<AuthContextValue>({
   profile: null,
   session: null,
   loading: true,
+  profileLoading: false,
+  profileError: null,
   refreshProfile: async () => {},
   signOut: async () => {},
 })
@@ -26,24 +30,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
+  const [profileLoading, setProfileLoading] = useState(false)
+  const [profileError, setProfileError] = useState<string | null>(null)
 
   const fetchProfile = async (userId: string) => {
+    setProfileLoading(true)
+    setProfileError(null)
+    setProfile(null)
+    let timeoutId: number | undefined
     try {
-      const { data } = await supabase
+      const profileRequest = supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .maybeSingle()
+
+      const timeout = new Promise<never>((_, reject) => {
+        timeoutId = window.setTimeout(() => reject(new Error('Profile request timed out')), 8000)
+      })
+      const { data, error } = await Promise.race([profileRequest, timeout])
+      if (error) throw error
       if (data) setProfile(data as Profile)
+      else setProfileError('Your profile could not be found. Please sign out and sign back in.')
     } catch (err) {
       console.error('Profile fetch error:', err)
+      setProfileError('We could not load your profile. Check your connection and try again.')
+    } finally {
+      if (timeoutId !== undefined) window.clearTimeout(timeoutId)
+      setProfileLoading(false)
     }
   }
 
   const refreshProfile = async () => {
-    if (user) {
-      await fetchProfile(user.id)
-    }
+    if (user) await fetchProfile(user.id)
   }
 
   useEffect(() => {
@@ -54,38 +73,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false)
     }).catch((err) => {
       console.error('Auth session error:', err)
+      setProfileError('We could not restore your session. Please sign in again.')
       setLoading(false)
     })
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session)
       setUser(session?.user ?? null)
-      if (!session) setProfile(null)
-      ;(async () => {
-        if (session?.user) {
-          await fetchProfile(session.user.id)
-        }
-      })()
+      if (!session) {
+        setProfile(null)
+        setProfileError(null)
+        setProfileLoading(false)
+      }
     })
 
     return () => listener.subscription.unsubscribe()
   }, [])
 
   useEffect(() => {
-    if (!user) return
+    if (!user) {
+      setProfile(null)
+      setProfileLoading(false)
+      return
+    }
     let cancelled = false
-    ;(async () => {
-      try {
-        const { data } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .maybeSingle()
-        if (!cancelled && data) setProfile(data as Profile)
-      } catch (err) {
-        console.error('Profile fetch error:', err)
-      }
-    })()
+    fetchProfile(user.id).catch(err => {
+      if (!cancelled) console.error('Profile loading error:', err)
+    })
     return () => { cancelled = true }
   }, [user])
 
@@ -95,7 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, profile, session, loading, refreshProfile, signOut }}>
+    <AuthContext.Provider value={{ user, profile, session, loading, profileLoading, profileError, refreshProfile, signOut }}>
       {children}
     </AuthContext.Provider>
   )

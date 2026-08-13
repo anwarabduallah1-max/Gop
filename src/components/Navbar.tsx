@@ -1,9 +1,18 @@
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { getAvatarSignedUrl } from './AvatarUpload'
 
 export default function Navbar() {
   const { user, profile, signOut } = useAuth()
   const navigate = useNavigate()
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+
+  useEffect(() => {
+    let active = true
+    getAvatarSignedUrl(profile?.avatar_url).then(url => { if (active) setAvatarUrl(url) })
+    return () => { active = false }
+  }, [profile?.avatar_url])
 
   return (
     <nav style={{
@@ -28,6 +37,12 @@ export default function Navbar() {
               </button>
               <button className="btn-ghost" onClick={() => navigate('/my-requests')} style={{ fontSize: 14, padding: '6px 12px', whiteSpace: 'nowrap' }}>
                 My Requests
+              </button>
+              <button className="btn-ghost" onClick={() => navigate('/referrals')} style={{ fontSize: 14, padding: '6px 12px', whiteSpace: 'nowrap' }}>
+                Referrals
+              </button>
+              <button onClick={() => navigate('/profile')} aria-label="Open profile settings" style={{ width: 32, height: 32, borderRadius: '50%', overflow: 'hidden', padding: 0, border: '1px solid rgba(245,200,66,0.35)', background: 'var(--accent-muted)', color: 'var(--accent)', cursor: 'pointer', fontWeight: 800 }}>
+                {avatarUrl ? <img src={avatarUrl} alt="Your profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (profile?.username?.[0] ?? user.email?.[0] ?? 'U').toUpperCase()}
               </button>
               <button className="btn-secondary" onClick={signOut} style={{ fontSize: 14, padding: '6px 14px', whiteSpace: 'nowrap' }}>
                 Sign Out

@@ -7,6 +7,7 @@ import { MANDATORY_DONATION_POST_ID, MANDATORY_MIN_DONATION, PLATFORM_FEE } from
 import type { Request } from '../lib/types'
 import DonationGateModal from '../components/DonationGateModal'
 import DonateModal from '../components/DonateModal'
+import ShareStoryModal from '../components/ShareStoryModal'
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024
 const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
@@ -37,6 +38,7 @@ export default function CreateRequestPage() {
   const [donateOpen, setDonateOpen] = useState(false)
   const [payingFee, setPayingFee] = useState(false)
   const [insufficientOpen, setInsufficientOpen] = useState(false)
+  const [shareRequest, setShareRequest] = useState<Request | null>(null)
 
   useEffect(() => {
     if (!user) return
@@ -165,14 +167,14 @@ export default function CreateRequestPage() {
         finalImageUrl = pub.publicUrl
       }
 
-      const { error } = await supabase.from('requests').insert({
+      const { data: createdRequest, error } = await supabase.from('requests').insert({
         title: title.trim(), description: description.trim(), image_url: finalImageUrl,
         product_url: productUrl.trim(), base_target: base, final_target: finalTarget,
-      })
+      }).select('*').single()
       setLoading(false)
 
-      if (error) showToast(error.message, 'error')
-      else { showToast('Request created successfully!', 'success'); navigate('/my-requests') }
+      if (error) showToast('Could not create your request. Please try again.', 'error')
+      else { showToast('Request created successfully!', 'success'); setShareRequest(createdRequest as Request) }
     } catch (err) {
       console.error('Submit error:', err)
       showToast('An unexpected error occurred. Please try again.', 'error')
@@ -326,6 +328,8 @@ export default function CreateRequestPage() {
           onDonated={() => { refreshDonationSum() }}
         />
       )}
+
+      {shareRequest && <ShareStoryModal request={shareRequest} referralCode={profile?.referral_code} onClose={() => { setShareRequest(null); navigate('/my-requests') }} />}
 
       {insufficientOpen && (
         <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && setInsufficientOpen(false)}>

@@ -54,6 +54,7 @@ Deno.serve(async (req: Request) => {
       source_currency: 'USD',
       source_amount: String(amount),
       currency: plisioCurrency,
+      allowed_psys_cids: plisioCurrency,
       order_name: `Stars ${amount}`,
       order_number: orderNumber,
       callback_url: callbackUrl,

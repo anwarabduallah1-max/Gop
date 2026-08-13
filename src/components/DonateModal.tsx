@@ -3,6 +3,7 @@ import type { Request } from '../lib/types'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import { supabase } from '../lib/supabase'
+import ShareStoryModal from './ShareStoryModal'
 
 interface Props {
   request: Request
@@ -17,6 +18,7 @@ export default function DonateModal({ request, onClose, onDonated }: Props) {
   const { showToast } = useToast()
   const [amount, setAmount] = useState(5)
   const [loading, setLoading] = useState(false)
+  const [shareOpen, setShareOpen] = useState(false)
 
   const balance = profile?.stars_balance ?? 0
   const insufficient = amount > balance
@@ -40,7 +42,7 @@ export default function DonateModal({ request, onClose, onDonated }: Props) {
         showToast(`Donated ★ ${amount} to ${request.title}!`, 'success')
         await refreshProfile()
         onDonated()
-        onClose()
+        setShareOpen(true)
       }
     } catch (err) {
       console.error('Donate error:', err)
@@ -121,6 +123,7 @@ export default function DonateModal({ request, onClose, onDonated }: Props) {
           </button>
         </div>
       </div>
+      {shareOpen && <ShareStoryModal request={request} referralCode={profile?.referral_code} onClose={() => { setShareOpen(false); onClose() }} />}
     </div>
   )
 }

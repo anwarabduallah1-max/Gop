@@ -3,6 +3,8 @@ export interface Profile {
   username: string
   avatar_url: string | null
   stars_balance: number
+  referral_code: string
+  referred_by: string | null
   created_at: string
   updated_at: string
 }
@@ -23,6 +25,14 @@ export interface Request {
   created_at: string
   updated_at: string
   profile?: { username: string; avatar_url: string | null } | null
+}
+
+export interface Supporter {
+  username: string
+  avatar_url: string | null
+  donated_stars: number
+  referral_stars: number
+  total_stars: number
 }
 
 export interface Transaction {

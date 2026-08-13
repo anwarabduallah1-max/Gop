@@ -10,6 +10,8 @@ import LoginPage from './pages/LoginPage'
 import SignupPage from './pages/SignupPage'
 import WalletPage from './pages/WalletPage'
 import MyRequestsPage from './pages/MyRequestsPage'
+import ReferralsPage from './pages/ReferralsPage'
+import ProfilePage from './pages/ProfilePage'
 
 export default function App() {
   if (!isSupabaseReady) {
@@ -43,6 +45,8 @@ export default function App() {
             <Route path="/signup" element={<SignupPage />} />
             <Route path="/wallet" element={<WalletPage />} />
             <Route path="/my-requests" element={<MyRequestsPage />} />
+            <Route path="/referrals" element={<ReferralsPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
           </Routes>
         </BrowserRouter>
       </ToastProvider>
