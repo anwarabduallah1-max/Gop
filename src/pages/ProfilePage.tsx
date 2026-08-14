@@ -4,12 +4,14 @@ import AvatarUpload from '../components/AvatarUpload'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import { supabase } from '../lib/supabase'
+import { COUNTRIES } from '../lib/countries'
 
 export default function ProfilePage() {
   const { user, profile, profileLoading, profileError, refreshProfile, signOut } = useAuth()
   const { showToast } = useToast()
   const navigate = useNavigate()
   const [username, setUsername] = useState('')
+  const [country, setCountry] = useState('')
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -17,17 +19,20 @@ export default function ProfilePage() {
   }, [user, navigate])
 
   useEffect(() => {
-    if (profile) setUsername(profile.username)
+    if (profile) {
+      setUsername(profile.username)
+      setCountry(profile.country ?? '')
+    }
   }, [profile])
 
-  const saveUsername = async (event: React.FormEvent) => {
+  const saveProfile = async (event: React.FormEvent) => {
     event.preventDefault()
     const trimmed = username.trim()
     if (!user || !trimmed) return
     setSaving(true)
-    const { error } = await supabase.from('profiles').update({ username: trimmed, updated_at: new Date().toISOString() }).eq('id', user.id)
+    const { error } = await supabase.from('profiles').update({ username: trimmed, country: country || null, updated_at: new Date().toISOString() }).eq('id', user.id)
     setSaving(false)
-    if (error) showToast('Could not save your username.', 'error')
+    if (error) showToast('Could not save your profile.', 'error')
     else { await refreshProfile(); showToast('Profile saved.', 'success') }
   }
 
@@ -64,9 +69,15 @@ export default function ProfilePage() {
       <div className="page-container" style={{ maxWidth: 640 }}>
         <div style={{ marginBottom: 26 }}><div style={{ color: 'var(--accent)', fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Account</div><h1 style={{ margin: '6px 0 8px', fontSize: 32, fontWeight: 900 }}>Profile settings</h1><p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: 15 }}>Make your StarLift profile feel like yours.</p></div>
         <div className="card" style={{ padding: 24, marginBottom: 16 }}><AvatarUpload userId={user.id} avatarPath={profile.avatar_url} username={profile.username} onUploaded={async () => { await refreshProfile() }} /></div>
-        <form className="card" onSubmit={saveUsername} style={{ padding: 24 }}>
+        <form className="card" onSubmit={saveProfile} style={{ padding: 24 }}>
           <label className="field-label" htmlFor="username">Display name</label>
           <input id="username" className="field-input" value={username} onChange={event => setUsername(event.target.value)} maxLength={40} required style={{ marginTop: 8 }} />
+          <label className="field-label" htmlFor="country" style={{ marginTop: 20 }}>Country</label>
+          <select id="country" className="field-input" value={country} onChange={event => setCountry(event.target.value)} style={{ marginTop: 8, cursor: 'pointer' }}>
+            <option value="">Select your country</option>
+            {COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}
+          </select>
+          <div style={{ marginTop: 6, fontSize: 12, color: 'var(--text-muted)' }}>Your country determines your ranking on the World Leaderboard.</div>
           <div style={{ marginTop: 18, display: 'flex', justifyContent: 'flex-end' }}><button className="btn-primary" disabled={saving || !username.trim()} type="submit">{saving ? 'Saving...' : 'Save changes'}</button></div>
         </form>
       </div>

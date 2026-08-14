@@ -41,6 +41,9 @@ export default function Navbar() {
               <button className="btn-ghost" onClick={() => navigate('/referrals')} style={{ fontSize: 14, padding: '6px 12px', whiteSpace: 'nowrap' }}>
                 Referrals
               </button>
+              <button className="btn-ghost" onClick={() => navigate('/leaderboard')} style={{ fontSize: 14, padding: '6px 12px', whiteSpace: 'nowrap' }}>
+                Leaderboard
+              </button>
               <button onClick={() => navigate('/profile')} aria-label="Open profile settings" style={{ width: 32, height: 32, borderRadius: '50%', overflow: 'hidden', padding: 0, border: '1px solid rgba(245,200,66,0.35)', background: 'var(--accent-muted)', color: 'var(--accent)', cursor: 'pointer', fontWeight: 800 }}>
                 {avatarUrl ? <img src={avatarUrl} alt="Your profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (profile?.username?.[0] ?? user.email?.[0] ?? 'U').toUpperCase()}
               </button>

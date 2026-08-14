@@ -114,6 +114,15 @@ export default function Header() {
                       >
                         My Requests
                       </Link>
+                      <Link
+                        to="/leaderboard"
+                        onClick={() => setMenuOpen(false)}
+                        style={{ display: 'block', padding: '10px 16px', fontSize: 14, color: 'var(--text-secondary)', textDecoration: 'none' }}
+                        onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-raised)')}
+                        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                      >
+                        World Leaderboard
+                      </Link>
                       <button
                         onClick={() => { setWalletOpen(true); setMenuOpen(false) }}
                         style={{

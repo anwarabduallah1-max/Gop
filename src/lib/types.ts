@@ -2,6 +2,7 @@ export interface Profile {
   id: string
   username: string
   avatar_url: string | null
+  country: string | null
   stars_balance: number
   referral_code: string
   referred_by: string | null
@@ -33,6 +34,15 @@ export interface Supporter {
   donated_stars: number
   referral_stars: number
   total_stars: number
+}
+
+export interface CountryLeaderboardEntry {
+  country_code: string
+  total_donated: number
+  donor_count: number
+  top_donor_username: string | null
+  top_donor_avatar_url: string | null
+  top_donor_amount: number | null
 }
 
 export interface Transaction {
