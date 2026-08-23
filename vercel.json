@@ -1,0 +1,10 @@
+{
+  "cleanUrls": true,
+  "rewrites": [
+    {
+      "source": "/((?!google68ce74c49c0f926e.html).*)",
+      "destination": "/index.html"
+    }
+  ]
+}
+
