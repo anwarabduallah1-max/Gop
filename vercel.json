@@ -1,10 +1,15 @@
 {
-  "cleanUrls": true,
-  "rewrites": [
+  "routes": [
     {
-      "source": "/((?!google68ce74c49c0f926e.html).*)",
-      "destination": "/index.html"
+      "src": "/google68ce74c49c0f926e.html",
+      "dest": "/google68ce74c49c0f926e.html"
+    },
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
     }
   ]
 }
-
